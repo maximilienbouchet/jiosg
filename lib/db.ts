@@ -106,6 +106,50 @@ export function insertEvent(event: {
   );
 }
 
+export function upsertEvent(event: {
+  source: string;
+  source_url: string;
+  raw_title: string;
+  raw_description: string | null;
+  venue: string;
+  event_date_start: string;
+  event_date_end: string | null;
+}): { inserted: boolean } {
+  const database = getDb();
+  const existing = database
+    .prepare("SELECT id FROM events WHERE source_url = ?")
+    .get(event.source_url);
+
+  const stmt = database.prepare(`
+    INSERT INTO events (
+      id, source, source_url, raw_title, raw_description, venue,
+      event_date_start, event_date_end, scraped_at,
+      is_manually_added, is_published,
+      thumbs_up, thumbs_down, created_at, updated_at
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, datetime('now'),
+      0, 0,
+      0, 0, datetime('now'), datetime('now')
+    )
+    ON CONFLICT(source_url) DO UPDATE SET
+      raw_title = excluded.raw_title,
+      raw_description = excluded.raw_description,
+      venue = excluded.venue,
+      event_date_start = excluded.event_date_start,
+      event_date_end = excluded.event_date_end,
+      updated_at = datetime('now')
+  `);
+
+  const id = crypto.randomUUID();
+  stmt.run(
+    id, event.source, event.source_url, event.raw_title, event.raw_description, event.venue,
+    event.event_date_start, event.event_date_end
+  );
+
+  return { inserted: !existing };
+}
+
 export function insertSubscriber(
   id: string,
   email: string,

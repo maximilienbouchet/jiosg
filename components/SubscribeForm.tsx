@@ -57,7 +57,7 @@ export function SubscribeForm() {
           required
           disabled={status === "loading"}
           className={cn(
-            "flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-accent)]",
+            "flex-1 bg-[var(--color-surface-2)] border border-white/[0.07] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)] rounded-lg px-4 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-accent)]",
             status === "loading" && "opacity-50"
           )}
         />

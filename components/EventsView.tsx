@@ -109,29 +109,37 @@ export function EventsView() {
         <EmptyState />
       ) : (
         <div className="mt-6 space-y-8">
-          {sortedDates.map((dateKey) => (
-            <div key={dateKey}>
-              <h2 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-sm tracking-widest text-[var(--color-accent)] mb-4">
-                {formatDateHeader(dateKey)}
-              </h2>
-              <div className="space-y-4">
-                {grouped[dateKey].map((event) => (
-                  <EventCard
-                    key={event.id}
-                    id={event.id}
-                    title={event.title}
-                    venue={event.venue}
-                    blurb={event.blurb}
-                    tags={event.tags}
-                    sourceUrl={event.sourceUrl}
-                    thumbsUp={event.thumbsUp}
-                    thumbsDown={event.thumbsDown}
-                    onVote={handleVote}
-                  />
-                ))}
+          {(() => {
+            let globalCardIndex = 0;
+            return sortedDates.map((dateKey) => (
+              <div key={dateKey}>
+                <h2 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-sm tracking-widest text-[var(--color-accent)] mb-4">
+                  {formatDateHeader(dateKey)}
+                </h2>
+                <div className="space-y-4">
+                  {grouped[dateKey].map((event) => {
+                    const delay = globalCardIndex * 80;
+                    globalCardIndex++;
+                    return (
+                      <EventCard
+                        key={event.id}
+                        id={event.id}
+                        title={event.title}
+                        venue={event.venue}
+                        blurb={event.blurb}
+                        tags={event.tags}
+                        sourceUrl={event.sourceUrl}
+                        thumbsUp={event.thumbsUp}
+                        thumbsDown={event.thumbsDown}
+                        onVote={handleVote}
+                        entranceDelay={delay}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ));
+          })()}
         </div>
       )}
     </div>
