@@ -37,6 +37,11 @@ yarn-error.log*
 
 # database
 db/*.db
+db/*.db-shm
+db/*.db-wal
+
+# playwright mcp
+.playwright-mcp/
 
 # qa screenshots
 test-screenshots/
