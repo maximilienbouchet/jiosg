@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(head:*)",
+      "Bash(npx create-next-app@latest:*)",
+      "WebSearch",
+      "WebFetch(domain:www.buildwithmatija.com)",
+      "WebFetch(domain:www.owolf.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm view:*)",
+      "Bash(cd /tmp && rm -rf sg-event-curation-scaffold && echo \"N\" | npx create-next-app@latest sg-event-curation-scaffold --typescript --tailwind --eslint --app --use-npm --empty 2>&1)",
+      "Bash(cd /tmp && rm -rf sg-event-curation-scaffold && printf 'N\\\\nN\\\\nN\\\\n' | npx create-next-app@latest sg-event-curation-scaffold --typescript --tailwind --eslint --app --use-npm --empty 2>&1)",
+      "Bash(cd /tmp && rm -rf sg-event-curation-scaffold && yes \"\" | npx create-next-app@latest sg-event-curation-scaffold --typescript --tailwind --eslint --app --use-npm --empty 2>&1)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_console_messages",
+      "Bash(curl:*)",
+      "mcp__playwright__browser_resize",
+      "Bash(npx tsx:*)",
+      "Bash(sqlite3:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

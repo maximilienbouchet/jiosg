@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Font CSS variables set at runtime by next/font */
+@theme inline {
+  --font-inter: var(--font-inter);
+  --font-space-grotesk: var(--font-space-grotesk);
+}
+
+@theme {
+  /* Core colors */
+  --color-bg: #0A0A0F;
+  --color-text: #E8E8ED;
+  --color-accent: #F5A623;
+  --color-link: #6B8AFF;
+  --color-muted: #6B6B76;
+
+  /* Tag colors */
+  --color-tag-live-loud: #3B82F6;
+  --color-tag-culture-fix: #7C3AED;
+  --color-tag-go-see: #D97706;
+  --color-tag-game-on: #22C55E;
+  --color-tag-screen-time: #EF4444;
+  --color-tag-taste-test: #9F1239;
+  --color-tag-touch-grass: #84CC16;
+  --color-tag-free-lah: #EAB308;
+  --color-tag-last-call: #F97316;
+  --color-tag-bring-someone: #EC4899;
+  --color-tag-once-only: #D1D5DB;
+  --color-tag-try-lah: #14B8A6;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  }
+}
