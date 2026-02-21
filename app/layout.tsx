@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
-import { BackgroundEffect } from "../components/BackgroundEffect";
-import { MouseGlow } from "../components/MouseGlow";
+import { LayoutEffects } from "../components/LayoutEffects";
 import "./globals.css";
 
 const inter = Inter({
@@ -34,8 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${inter.variable} ${spaceGrotesk.variable}`}>
       <body className="antialiased">
-        <BackgroundEffect />
-        <MouseGlow />
+        <LayoutEffects />
         {children}
       </body>
     </html>

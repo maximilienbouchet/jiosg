@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS events (
   tags TEXT,
   is_manually_added INTEGER NOT NULL DEFAULT 0,
   is_published INTEGER NOT NULL DEFAULT 0,
+  is_advance_notice INTEGER NOT NULL DEFAULT 0,
   thumbs_up INTEGER NOT NULL DEFAULT 0,
   thumbs_down INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),

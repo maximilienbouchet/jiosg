@@ -22,6 +22,7 @@ export interface EventRow {
   tags: string | null;
   is_manually_added: number;
   is_published: number;
+  is_advance_notice: number;
   thumbs_up: number;
   thumbs_down: number;
   created_at: string;
@@ -42,6 +43,12 @@ export function initializeDb(): void {
   const schemaPath = path.join(process.cwd(), "db", "schema.sql");
   const schema = fs.readFileSync(schemaPath, "utf-8");
   database.exec(schema);
+
+  // Migration: add is_advance_notice for existing databases
+  const columns = database.pragma("table_info(events)") as { name: string }[];
+  if (!columns.some((c) => c.name === "is_advance_notice")) {
+    database.exec("ALTER TABLE events ADD COLUMN is_advance_notice INTEGER NOT NULL DEFAULT 0");
+  }
 }
 
 export function getPublishedEvents(startDate: string, endDate: string): EventRow[] {
@@ -81,6 +88,7 @@ export function insertEvent(event: {
   tags: string | null;
   is_manually_added: number;
   is_published: number;
+  is_advance_notice?: number;
 }): void {
   const database = getDb();
   const stmt = database.prepare(`
@@ -88,13 +96,13 @@ export function insertEvent(event: {
       id, source, source_url, raw_title, raw_description, venue,
       event_date_start, event_date_end, scraped_at,
       llm_included, llm_filter_reason, blurb, tags,
-      is_manually_added, is_published,
+      is_manually_added, is_published, is_advance_notice,
       thumbs_up, thumbs_down, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?,
       ?, ?, datetime('now'),
       ?, ?, ?, ?,
-      ?, ?,
+      ?, ?, ?,
       0, 0, datetime('now'), datetime('now')
     )
   `);
@@ -102,7 +110,7 @@ export function insertEvent(event: {
     event.id, event.source, event.source_url, event.raw_title, event.raw_description, event.venue,
     event.event_date_start, event.event_date_end,
     event.llm_included, event.llm_filter_reason, event.blurb, event.tags,
-    event.is_manually_added, event.is_published
+    event.is_manually_added, event.is_published, event.is_advance_notice ?? 0
   );
 }
 
@@ -187,6 +195,50 @@ export function updateEventLlmResults(
     data.is_published,
     eventId
   );
+}
+
+export function getAllEvents(): EventRow[] {
+  const database = getDb();
+  const stmt = database.prepare("SELECT * FROM events ORDER BY event_date_start DESC");
+  return stmt.all() as EventRow[];
+}
+
+export function getEventById(eventId: string): EventRow | undefined {
+  const database = getDb();
+  const stmt = database.prepare("SELECT * FROM events WHERE id = ?");
+  return stmt.get(eventId) as EventRow | undefined;
+}
+
+const ALLOWED_UPDATE_COLUMNS = new Set([
+  "raw_title", "venue", "blurb", "tags",
+  "is_published", "is_advance_notice",
+  "event_date_start", "event_date_end",
+]);
+
+export function updateEvent(
+  eventId: string,
+  data: Record<string, unknown>
+): boolean {
+  const database = getDb();
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, value] of Object.entries(data)) {
+    if (!ALLOWED_UPDATE_COLUMNS.has(key)) continue;
+    sets.push(`${key} = ?`);
+    values.push(key === "tags" && Array.isArray(value) ? JSON.stringify(value) : value);
+  }
+
+  if (sets.length === 0) return false;
+
+  sets.push("updated_at = datetime('now')");
+  values.push(eventId);
+
+  const stmt = database.prepare(
+    `UPDATE events SET ${sets.join(", ")} WHERE id = ?`
+  );
+  const result = stmt.run(...values);
+  return result.changes > 0;
 }
 
 export function insertSubscriber(
