@@ -15,9 +15,15 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "SG Events — Curated things to do in Singapore",
+  title: "jio — Curated things to do in Singapore",
   description:
     "~10 curated events happening in Singapore this week. For people who are tired of digging through noise.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({

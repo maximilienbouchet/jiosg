@@ -229,7 +229,7 @@ Respond with JSON only:
 
 ```
 ┌─────────────────────────────────────────┐
-│  [SITE NAME]              [subscribe]   │  ← sticky header, minimal
+│  jio                      [subscribe]   │  ← sticky header, minimal
 ├─────────────────────────────────────────┤
 │                                         │
 │     ←  SAT 22 FEB — FRI 28 FEB  →      │  ← week navigation, centered

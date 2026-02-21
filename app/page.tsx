@@ -14,7 +14,7 @@ export default function Home() {
                 backgroundImage: "linear-gradient(90deg, #F5A623, #6B8AFF, #7C3AED, #F5A623)",
               }}
             >
-              SG Events
+              jio
             </span>
           </h1>
           <span className="text-xs text-[var(--color-muted)] hidden sm:block">

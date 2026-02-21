@@ -4,6 +4,8 @@
 
 Events curation website for Singapore. Single-page app showing ~10 curated events per rolling 7-day window. Automated scraping + LLM filtering + manual curation via admin panel. Dark mode, typographic-driven design.
 
+Brand name: jio (always lowercase)
+
 See @SPEC.md for full product requirements, data model, LLM prompts, and build plan.
 
 ## Tech Stack

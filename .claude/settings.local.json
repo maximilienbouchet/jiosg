@@ -44,7 +44,8 @@
       "mcp__playwright__browser_install",
       "mcp__playwright__browser_wait_for",
       "Bash(echo:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(git status:*)"
     ]
   }
 }

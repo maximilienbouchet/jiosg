@@ -150,6 +150,45 @@ export function upsertEvent(event: {
   return { inserted: !existing };
 }
 
+export function getUnprocessedEvents(): EventRow[] {
+  const database = getDb();
+  const stmt = database.prepare(`
+    SELECT * FROM events WHERE llm_included IS NULL ORDER BY event_date_start ASC
+  `);
+  return stmt.all() as EventRow[];
+}
+
+export function updateEventLlmResults(
+  eventId: string,
+  data: {
+    llm_included: number;
+    llm_filter_reason: string | null;
+    blurb: string | null;
+    tags: string[] | null;
+    is_published: number;
+  }
+): void {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE events
+    SET llm_included = ?,
+        llm_filter_reason = ?,
+        blurb = ?,
+        tags = ?,
+        is_published = ?,
+        updated_at = datetime('now')
+    WHERE id = ?
+  `);
+  stmt.run(
+    data.llm_included,
+    data.llm_filter_reason,
+    data.blurb,
+    data.tags ? JSON.stringify(data.tags) : null,
+    data.is_published,
+    eventId
+  );
+}
+
 export function insertSubscriber(
   id: string,
   email: string,
