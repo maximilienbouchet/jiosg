@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS events (
   tags TEXT,
   is_manually_added INTEGER NOT NULL DEFAULT 0,
   is_published INTEGER NOT NULL DEFAULT 0,
-  is_advance_notice INTEGER NOT NULL DEFAULT 0,
+  is_heads_up INTEGER NOT NULL DEFAULT 0,
+  llm_score INTEGER,
   thumbs_up INTEGER NOT NULL DEFAULT 0,
   thumbs_down INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -32,6 +33,8 @@ CREATE TABLE IF NOT EXISTS subscribers (
   is_active INTEGER NOT NULL DEFAULT 1,
   unsubscribe_token TEXT NOT NULL UNIQUE
 );
+
+CREATE INDEX IF NOT EXISTS idx_events_heads_up ON events(is_heads_up, is_published, event_date_start);
 
 CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(is_active);
 CREATE INDEX IF NOT EXISTS idx_subscribers_token ON subscribers(unsubscribe_token);

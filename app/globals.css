@@ -63,7 +63,21 @@
   }
 }
 
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 @layer components {
+  .ticker-scroll {
+    animation: ticker-scroll var(--ticker-duration, 20s) linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-scroll {
+      animation: none;
+      overflow-x: auto;
+    }
+  }
   .card-shimmer {
     position: relative;
     overflow: hidden;

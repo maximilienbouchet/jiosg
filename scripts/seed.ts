@@ -10,7 +10,14 @@ function sgDate(daysFromNow: number): string {
   return d.toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
 }
 
-const events = [
+const events: {
+  raw_title: string;
+  venue: string;
+  blurb: string;
+  tags: string[];
+  day: number;
+  isHeadsUp?: boolean;
+}[] = [
   {
     raw_title: "Singapore Smash 2026",
     venue: "OCBC Arena, Sports Hub",
@@ -81,6 +88,22 @@ const events = [
     tags: ["live & loud", "bring someone", "last call"],
     day: 12,
   },
+  {
+    raw_title: "Ottolenghi Live: The Fermentation Session",
+    venue: "National Library, Auditorium",
+    blurb: "The chef behind Plenty talks fermentation to a 200-seat room.",
+    tags: ["taste test", "once only"],
+    day: 22,
+    isHeadsUp: true,
+  },
+  {
+    raw_title: "Berlin Philharmonic Guest Residency",
+    venue: "Esplanade Concert Hall",
+    blurb: "Three nights of Beethoven from one of the world's finest orchestras.",
+    tags: ["culture fix", "once only"],
+    day: 35,
+    isHeadsUp: true,
+  },
 ];
 
 function main() {
@@ -108,6 +131,7 @@ function main() {
       tags: JSON.stringify(e.tags),
       is_manually_added: 1,
       is_published: 1,
+      is_heads_up: e.isHeadsUp ? 1 : 0,
     });
     console.log(`  [${i + 1}] ${e.raw_title} — ${sgDate(e.day)}`);
   }

@@ -22,7 +22,8 @@ export interface EventRow {
   tags: string | null;
   is_manually_added: number;
   is_published: number;
-  is_advance_notice: number;
+  is_heads_up: number;
+  llm_score: number | null;
   thumbs_up: number;
   thumbs_down: number;
   created_at: string;
@@ -44,10 +45,13 @@ export function initializeDb(): void {
   const schema = fs.readFileSync(schemaPath, "utf-8");
   database.exec(schema);
 
-  // Migration: add is_advance_notice for existing databases
+  // Migrations for existing databases
   const columns = database.pragma("table_info(events)") as { name: string }[];
-  if (!columns.some((c) => c.name === "is_advance_notice")) {
-    database.exec("ALTER TABLE events ADD COLUMN is_advance_notice INTEGER NOT NULL DEFAULT 0");
+  if (!columns.some((c) => c.name === "is_heads_up")) {
+    database.exec("ALTER TABLE events ADD COLUMN is_heads_up INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.some((c) => c.name === "llm_score")) {
+    database.exec("ALTER TABLE events ADD COLUMN llm_score INTEGER");
   }
 }
 
@@ -88,7 +92,7 @@ export function insertEvent(event: {
   tags: string | null;
   is_manually_added: number;
   is_published: number;
-  is_advance_notice?: number;
+  is_heads_up?: number;
 }): void {
   const database = getDb();
   const stmt = database.prepare(`
@@ -96,7 +100,7 @@ export function insertEvent(event: {
       id, source, source_url, raw_title, raw_description, venue,
       event_date_start, event_date_end, scraped_at,
       llm_included, llm_filter_reason, blurb, tags,
-      is_manually_added, is_published, is_advance_notice,
+      is_manually_added, is_published, is_heads_up,
       thumbs_up, thumbs_down, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?,
@@ -110,7 +114,7 @@ export function insertEvent(event: {
     event.id, event.source, event.source_url, event.raw_title, event.raw_description, event.venue,
     event.event_date_start, event.event_date_end,
     event.llm_included, event.llm_filter_reason, event.blurb, event.tags,
-    event.is_manually_added, event.is_published, event.is_advance_notice ?? 0
+    event.is_manually_added, event.is_published, event.is_heads_up ?? 0
   );
 }
 
@@ -158,12 +162,21 @@ export function upsertEvent(event: {
   return { inserted: !existing };
 }
 
-export function getUnprocessedEvents(): EventRow[] {
+export function getUnprocessedEvents(limit?: number): EventRow[] {
   const database = getDb();
-  const stmt = database.prepare(`
-    SELECT * FROM events WHERE llm_included IS NULL ORDER BY event_date_start ASC
-  `);
-  return stmt.all() as EventRow[];
+  const sql = limit
+    ? `SELECT * FROM events WHERE llm_included IS NULL ORDER BY event_date_start ASC LIMIT ?`
+    : `SELECT * FROM events WHERE llm_included IS NULL ORDER BY event_date_start ASC`;
+  const stmt = database.prepare(sql);
+  return (limit ? stmt.all(limit) : stmt.all()) as EventRow[];
+}
+
+export function countUnprocessedEvents(): number {
+  const database = getDb();
+  const row = database
+    .prepare("SELECT COUNT(*) as count FROM events WHERE llm_included IS NULL")
+    .get() as { count: number };
+  return row.count;
 }
 
 export function updateEventLlmResults(
@@ -174,6 +187,8 @@ export function updateEventLlmResults(
     blurb: string | null;
     tags: string[] | null;
     is_published: number;
+    is_heads_up?: number;
+    llm_score?: number | null;
   }
 ): void {
   const database = getDb();
@@ -184,6 +199,8 @@ export function updateEventLlmResults(
         blurb = ?,
         tags = ?,
         is_published = ?,
+        is_heads_up = ?,
+        llm_score = ?,
         updated_at = datetime('now')
     WHERE id = ?
   `);
@@ -193,8 +210,23 @@ export function updateEventLlmResults(
     data.blurb,
     data.tags ? JSON.stringify(data.tags) : null,
     data.is_published,
+    data.is_heads_up ?? 0,
+    data.llm_score ?? null,
     eventId
   );
+}
+
+export function getHeadsUpEvents(todaySgt: string): EventRow[] {
+  const database = getDb();
+  const stmt = database.prepare(`
+    SELECT * FROM events
+    WHERE is_heads_up = 1
+      AND is_published = 1
+      AND date(event_date_start) > date(?, '+7 days')
+    ORDER BY event_date_start ASC
+    LIMIT 3
+  `);
+  return stmt.all(todaySgt) as EventRow[];
 }
 
 export function getAllEvents(): EventRow[] {
@@ -211,7 +243,7 @@ export function getEventById(eventId: string): EventRow | undefined {
 
 const ALLOWED_UPDATE_COLUMNS = new Set([
   "raw_title", "venue", "blurb", "tags",
-  "is_published", "is_advance_notice",
+  "is_published", "is_heads_up", "llm_score",
   "event_date_start", "event_date_end",
 ]);
 

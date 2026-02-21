@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     tags: e.tags ? JSON.parse(e.tags) : [],
     isManuallyAdded: e.is_manually_added,
     isPublished: e.is_published,
-    isAdvanceNotice: e.is_advance_notice,
+    isHeadsUp: e.is_heads_up,
     thumbsUp: e.thumbs_up,
     thumbsDown: e.thumbs_down,
     createdAt: e.created_at,
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { sourceUrl, rawTitle, rawDescription, venue, eventDateStart, eventDateEnd, blurb, tags, isAdvanceNotice } = body;
+    const { sourceUrl, rawTitle, rawDescription, venue, eventDateStart, eventDateEnd, blurb, tags, isHeadsUp } = body;
 
     if (!sourceUrl || !rawTitle || !venue || !eventDateStart) {
       return NextResponse.json(
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         tags: tags ? JSON.stringify(tags) : null,
         is_manually_added: 1,
         is_published: 1,
-        is_advance_notice: isAdvanceNotice ? 1 : 0,
+        is_heads_up: isHeadsUp ? 1 : 0,
       });
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes("UNIQUE constraint")) {

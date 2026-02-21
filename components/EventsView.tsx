@@ -5,6 +5,8 @@ import { WeekNav } from "./WeekNav";
 import { TagFilter } from "./TagFilter";
 import { EventCard } from "./EventCard";
 import { EmptyState } from "./EmptyState";
+import { HeadsUpSection } from "./HeadsUpSection";
+import { addDays, formatDateHeader } from "../lib/dates";
 
 interface EventData {
   id: string;
@@ -18,19 +20,6 @@ interface EventData {
   thumbsDown: number;
 }
 
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
-}
-
-function formatDateHeader(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d
-    .toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" })
-    .toUpperCase();
-}
-
 export function EventsView() {
   const [startDate, setStartDate] = useState(() => {
     return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
@@ -40,6 +29,8 @@ export function EventsView() {
   const [loading, setLoading] = useState(true);
 
   const endDate = addDays(startDate, 6);
+  const todaySgt = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
+  const isCurrentWeek = startDate === todaySgt;
 
   useEffect(() => {
     setLoading(true);
@@ -102,6 +93,7 @@ export function EventsView() {
     <div>
       <WeekNav startDate={startDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
       <TagFilter selectedTags={selectedTags} onToggleTag={handleToggleTag} onClearTags={handleClearTags} />
+      <HeadsUpSection visible={isCurrentWeek} />
 
       {loading ? (
         <p className="text-center py-16 text-[var(--color-muted)]">Loading...</p>

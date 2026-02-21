@@ -39,13 +39,13 @@
 - **Thumbs up / thumbs down** on each event card (anonymous, no auth required)
 - **Empty state** when no events pass the filter: a single cheeky line like "Quiet week. Singapore's charging up." — not an apology, a personality moment
 - **Email subscribe** — single email input field, minimal. "Get the list every Thursday." Uses Resend free tier (3,000 emails/month)
-- **"Plan Ahead Lah" section** — below the main event feed, above the subscribe form
-  - Shows max 3 events that are 2-8 weeks out and worth booking now
-  - Admin-flagged only (editorial decision, not algorithmic)
+- **"Heads Up" section** — below the main event feed, above the subscribe form
+  - Shows max 3 events beyond the 7-day window that are worth booking now
+  - LLM-auto-selected during the blurb+tags pipeline (no admin involvement required)
   - Each card shows the actual event date, title, venue, blurb, tags
   - Cards have a left accent border to visually distinguish from the main feed
-  - Section header: "PLAN AHEAD LAH" with subtitle "Book first, plan later."
-  - Renders nothing when no advance-notice events exist (no empty state)
+  - Section header: "HEADS UP" with subtitle "Worth booking before they're gone."
+  - Renders nothing when no heads-up events exist (no empty state)
   - Tag filter does NOT apply to this section
   - Static regardless of week navigation (always anchored to today + 7 days)
   - Events auto-transition to the main feed when their date enters the 7-day window
@@ -137,7 +137,7 @@ events
 ├── tags                (JSON array of strings, nullable)
 ├── is_manually_added   (boolean, default false)
 ├── is_published        (boolean, default false — true after LLM + approval)
-├── is_advance_notice   (boolean, default false — admin flag for "plan ahead" events)
+├── is_heads_up         (boolean, default false — LLM flag for notable events worth booking early)
 ├── thumbs_up           (integer, default 0)
 ├── thumbs_down         (integer, default 0)
 ├── created_at          (datetime)
@@ -270,8 +270,8 @@ Respond with JSON only:
 │                                         │
 ├─────────────────────────────────────────┤
 │                                         │
-│  ─── PLAN AHEAD LAH ───                │
-│  Book first, plan later.                │
+│  ─── HEADS UP ───                      │
+│  Worth booking before they're gone.     │
 │                                         │
 │  ┃ SAT 15 MAR                           │
 │  ┃ Ottolenghi Live                      │
@@ -436,7 +436,7 @@ Session 10: Scraper health checks + alerting
 Session 11: SEO basics (meta tags, OG image, sitemap)
 Session 12: Share on Reddit r/singapore, LinkedIn, WhatsApp groups
 
-**Note:** "Plan Ahead Lah" section should be implemented after the core 7-day flow is solid — late Weekend 3 or as a fast follow.
+**Note:** "Heads Up" section should be implemented after the core 7-day flow is solid — late Weekend 3 or as a fast follow.
 
 **Deliverable:** Polished product ready for real users.
 

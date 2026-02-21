@@ -16,7 +16,7 @@ interface AdminEvent {
   tags: string[];
   isManuallyAdded: number;
   isPublished: number;
-  isAdvanceNotice: number;
+  isHeadsUp: number;
   thumbsUp: number;
   thumbsDown: number;
 }
@@ -57,7 +57,7 @@ export function EventList() {
     fetchEvents();
   }, [fetchEvents]);
 
-  async function toggleField(id: string, field: "is_published" | "is_advance_notice", currentValue: number) {
+  async function toggleField(id: string, field: "is_published" | "is_heads_up", currentValue: number) {
     const res = await fetch("/api/admin/events", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -71,7 +71,7 @@ export function EventList() {
                 ...e,
                 ...(field === "is_published"
                   ? { isPublished: currentValue ? 0 : 1 }
-                  : { isAdvanceNotice: currentValue ? 0 : 1 }),
+                  : { isHeadsUp: currentValue ? 0 : 1 }),
               }
             : e
         )
@@ -154,7 +154,7 @@ export function EventList() {
               <th className="py-2 pr-3 font-medium">Title</th>
               <th className="py-2 pr-3 font-medium">Source</th>
               <th className="py-2 pr-3 font-medium text-center">Published</th>
-              <th className="py-2 pr-3 font-medium text-center">Plan Ahead</th>
+              <th className="py-2 pr-3 font-medium text-center">Heads Up</th>
               <th className="py-2 pr-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -203,8 +203,8 @@ export function EventList() {
                 <td className="py-2 pr-3 text-center">
                   <input
                     type="checkbox"
-                    checked={!!event.isAdvanceNotice}
-                    onChange={() => toggleField(event.id, "is_advance_notice", event.isAdvanceNotice)}
+                    checked={!!event.isHeadsUp}
+                    onChange={() => toggleField(event.id, "is_heads_up", event.isHeadsUp)}
                     className="cursor-pointer"
                   />
                 </td>

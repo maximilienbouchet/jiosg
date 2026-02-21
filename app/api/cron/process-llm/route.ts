@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await processUnfilteredEvents();
+    const result = await processUnfilteredEvents(20);
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     const message =

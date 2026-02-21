@@ -1,4 +1,6 @@
 import { scrapeTheKallang } from "./thekallang";
+import { scrapeEventbrite } from "./eventbrite";
+import { scrapeEsplanade } from "./esplanade";
 
 export async function runAllScrapers(): Promise<{
   total: number;
@@ -11,8 +13,8 @@ export async function runAllScrapers(): Promise<{
 
   const scrapers: { name: string; fn: () => Promise<number> }[] = [
     { name: "thekallang", fn: scrapeTheKallang },
-    // { name: "eventbrite", fn: scrapeEventbrite },
-    // { name: "esplanade", fn: scrapeEsplanade },
+    { name: "eventbrite", fn: scrapeEventbrite },
+    { name: "esplanade", fn: scrapeEsplanade },
     // { name: "sportplus", fn: scrapeSportPlus },
   ];
 

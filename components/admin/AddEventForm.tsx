@@ -24,7 +24,7 @@ export function AddEventForm() {
   const [editTags, setEditTags] = useState<string[]>([]);
   const [editDateStart, setEditDateStart] = useState("");
   const [editDateEnd, setEditDateEnd] = useState("");
-  const [isAdvanceNotice, setIsAdvanceNotice] = useState(false);
+  const [isHeadsUp, setIsHeadsUp] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -55,7 +55,7 @@ export function AddEventForm() {
       setEditTags(data.tags || []);
       setEditDateStart("");
       setEditDateEnd("");
-      setIsAdvanceNotice(false);
+      setIsHeadsUp(false);
     } catch {
       setProcessError("Network error — try again");
     } finally {
@@ -95,7 +95,7 @@ export function AddEventForm() {
           eventDateEnd: editDateEnd || null,
           blurb: editBlurb.trim() || null,
           tags: editTags,
-          isAdvanceNotice,
+          isHeadsUp,
         }),
       });
       const data = await res.json();
@@ -115,7 +115,7 @@ export function AddEventForm() {
       setEditTags([]);
       setEditDateStart("");
       setEditDateEnd("");
-      setIsAdvanceNotice(false);
+      setIsHeadsUp(false);
     } catch {
       setSaveMessage("Network error — try again");
     } finally {
@@ -246,13 +246,13 @@ export function AddEventForm() {
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              id="advance-notice"
-              checked={isAdvanceNotice}
-              onChange={(e) => setIsAdvanceNotice(e.target.checked)}
+              id="heads-up"
+              checked={isHeadsUp}
+              onChange={(e) => setIsHeadsUp(e.target.checked)}
               className="cursor-pointer"
             />
-            <label htmlFor="advance-notice" className="text-sm text-gray-600 cursor-pointer">
-              Plan Ahead Lah (advance notice event)
+            <label htmlFor="heads-up" className="text-sm text-gray-600 cursor-pointer">
+              Heads Up (notable event worth booking early)
             </label>
           </div>
 
