@@ -59,6 +59,17 @@ See @SPEC.md for full product requirements, data model, LLM prompts, and build p
 - Do NOT write automated test suites — manual verification is fine at this scale
 - Playwright MCP screenshots go in `test-screenshots/` — NEVER in project root
 
+## Planning Workflow
+
+When entering plan mode, always follow a maker-checker process:
+1. **Maker:** Design the implementation plan (explore codebase, draft plan file)
+2. **Checker:** After the plan is drafted, ALWAYS spin up a reviewer agent (subagent_type: Plan) acting as a senior engineering manager to:
+   - Identify gaps, bugs, edge cases, and over-engineering
+   - Flag date/timezone issues, missing validation, import convention mismatches
+   - Verify the plan reuses existing utilities and matches project conventions
+   - Suggest concrete, actionable improvements ranked by severity
+3. **Revise:** Incorporate the reviewer's feedback into the final plan before presenting to the user
+
 ## Important Notes
 
 - NEVER commit .env or .env.local files
