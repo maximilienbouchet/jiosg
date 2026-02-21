@@ -1,7 +1,5 @@
 "use client";
 
-// TODO: Implement week navigation with ← → arrows and date range display
-
 interface WeekNavProps {
   startDate: Date;
   onPrevWeek: () => void;

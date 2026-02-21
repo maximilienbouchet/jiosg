@@ -36,7 +36,7 @@ export function EventsView() {
     return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
   });
   const [events, setEvents] = useState<EventData[]>([]);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const endDate = addDays(startDate, 6);
@@ -71,9 +71,20 @@ export function EventsView() {
     });
   }, []);
 
-  const filtered = selectedTag
-    ? events.filter((e) => e.tags.includes(selectedTag))
-    : events;
+  const handleToggleTag = useCallback((tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }, []);
+
+  const handleClearTags = useCallback(() => {
+    setSelectedTags([]);
+  }, []);
+
+  const filtered =
+    selectedTags.length > 0
+      ? events.filter((e) => e.tags.some((t) => selectedTags.includes(t)))
+      : events;
 
   // Group by date
   const grouped: Record<string, EventData[]> = {};
@@ -90,7 +101,7 @@ export function EventsView() {
   return (
     <div>
       <WeekNav startDate={startDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
-      <TagFilter selectedTag={selectedTag} onSelectTag={setSelectedTag} />
+      <TagFilter selectedTags={selectedTags} onToggleTag={handleToggleTag} onClearTags={handleClearTags} />
 
       {loading ? (
         <p className="text-center py-16 text-[var(--color-muted)]">Loading...</p>

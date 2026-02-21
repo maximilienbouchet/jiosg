@@ -1,43 +1,51 @@
 "use client";
 
-// TODO: Implement tag filter bar with horizontal scroll on mobile
-
-const ALL_TAGS = [
-  "live & loud",
-  "culture fix",
-  "go see",
-  "game on",
-  "screen time",
-  "taste test",
-  "touch grass",
-  "free lah",
-  "last call",
-  "bring someone",
-  "once only",
-  "try lah",
-] as const;
+import { ALL_TAGS, TAG_COLORS } from "../lib/tags";
 
 interface TagFilterProps {
-  selectedTag: string | null;
-  onSelectTag: (tag: string | null) => void;
+  selectedTags: string[];
+  onToggleTag: (tag: string) => void;
+  onClearTags: () => void;
 }
 
-export function TagFilter({ selectedTag, onSelectTag }: TagFilterProps) {
+export function TagFilter({ selectedTags, onToggleTag, onClearTags }: TagFilterProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto py-2">
-      {ALL_TAGS.map((tag) => (
+    <div className="flex gap-2 overflow-x-auto scrollbar-hide py-2">
+      {selectedTags.length > 0 && (
         <button
-          key={tag}
-          onClick={() => onSelectTag(selectedTag === tag ? null : tag)}
-          className={`whitespace-nowrap text-xs px-3 py-1 rounded-full border transition-colors ${
-            selectedTag === tag
-              ? "bg-[var(--color-accent)] text-black border-[var(--color-accent)]"
-              : "border-white/20 text-[var(--color-muted)] hover:border-white/40"
-          }`}
+          onClick={onClearTags}
+          className="whitespace-nowrap text-xs px-3 py-1 rounded-full border border-white/20 text-[var(--color-text)] hover:border-white/40 transition-colors"
         >
-          {tag}
+          all
         </button>
-      ))}
+      )}
+      {ALL_TAGS.map((tag) => {
+        const isSelected = selectedTags.includes(tag);
+        const color = TAG_COLORS[tag] || "var(--color-muted)";
+
+        return (
+          <button
+            key={tag}
+            onClick={() => onToggleTag(tag)}
+            className="whitespace-nowrap text-xs px-3 py-1 rounded-full border transition-colors"
+            style={
+              isSelected
+                ? {
+                    backgroundColor: color,
+                    color: "#0A0A0F",
+                    borderColor: color,
+                  }
+                : {
+                    backgroundColor: "transparent",
+                    color: `color-mix(in srgb, ${color} 70%, var(--color-text))`,
+                    borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
+                  }
+            }
+          >
+            {tag}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -105,3 +105,17 @@ export function insertEvent(event: {
     event.is_manually_added, event.is_published
   );
 }
+
+export function insertSubscriber(
+  id: string,
+  email: string,
+  unsubscribeToken: string
+): { success: true; alreadyExists: boolean } {
+  const database = getDb();
+  const stmt = database.prepare(`
+    INSERT OR IGNORE INTO subscribers (id, email, subscribed_at, is_active, unsubscribe_token)
+    VALUES (?, ?, datetime('now'), 1, ?)
+  `);
+  const result = stmt.run(id, email, unsubscribeToken);
+  return { success: true, alreadyExists: result.changes === 0 };
+}
