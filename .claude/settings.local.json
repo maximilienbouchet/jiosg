@@ -20,7 +20,31 @@
       "mcp__playwright__browser_resize",
       "Bash(npx tsx:*)",
       "Bash(sqlite3:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "mcp__playwright__browser_click",
+      "Bash(git add:*)",
+      "mcp__playwright__browser_close",
+      "WebFetch(domain:www.dive.club)",
+      "WebFetch(domain:yo.fm)",
+      "WebFetch(domain:www.growthmates.news)",
+      "WebFetch(domain:x.com)",
+      "WebFetch(domain:maven.com)",
+      "WebFetch(domain:goodpods.com)",
+      "WebFetch(domain:rss.com)",
+      "WebFetch(domain:www.listennotes.com)",
+      "Bash(git diff:*)",
+      "WebFetch(domain:podtail.com)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:www.thekallang.com.sg)",
+      "mcp__playwright__browser_evaluate",
+      "WebFetch(domain:daltonwalsh.com)",
+      "WebFetch(domain:ui.aceternity.com)",
+      "Bash(npm ls cheerio 2>&1 && npm ls domhandler 2>&1)",
+      "Bash(CRON_SECRET=test-secret curl -s -X POST http://localhost:3000/api/cron/scrape -H \"Authorization: Bearer wrong\" | python3 -m json.tool 2>&1)",
+      "mcp__playwright__browser_install",
+      "mcp__playwright__browser_wait_for",
+      "Bash(echo:*)",
+      "Bash(git check-ignore:*)"
     ]
   }
 }
