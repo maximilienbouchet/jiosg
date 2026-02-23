@@ -286,3 +286,18 @@ export function insertSubscriber(
   const result = stmt.run(id, email, unsubscribeToken);
   return { success: true, alreadyExists: result.changes === 0 };
 }
+
+export function getActiveSubscribers(): { id: string; email: string; unsubscribe_token: string }[] {
+  const database = getDb();
+  return database.prepare(
+    `SELECT id, email, unsubscribe_token FROM subscribers WHERE is_active = 1`
+  ).all() as { id: string; email: string; unsubscribe_token: string }[];
+}
+
+export function deactivateSubscriber(token: string): boolean {
+  const database = getDb();
+  const result = database.prepare(
+    `UPDATE subscribers SET is_active = 0 WHERE unsubscribe_token = ? AND is_active = 1`
+  ).run(token);
+  return result.changes > 0;
+}
