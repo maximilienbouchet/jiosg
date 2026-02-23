@@ -19,36 +19,34 @@ export interface BlurbResult {
   score: number;
 }
 
-const FILTER_SYSTEM_PROMPT = `You are an extremely selective event curator for a website that recommends only the BEST cultural and lifestyle events in Singapore to people aged 20-40.
+const FILTER_SYSTEM_PROMPT = `You are a selective event curator for a website that recommends quality cultural and lifestyle events in Singapore to people aged 20-40.
 
-Your job: decide if an event should be INCLUDED or EXCLUDED. When in doubt, EXCLUDE. We show ~10 events per week max — only the genuinely exciting ones make the cut.
+Your job: decide if an event should be INCLUDED or EXCLUDED. We show ~10-15 events per week — quality matters, but we'd rather show a solid lineup than an empty page.
 
-CRITICAL: Apply "the wow test" — would a culturally curious person see this and think "oh wow, I need to go to this"? If the answer is "maybe" or "it's fine", EXCLUDE it. We only want events that make people text their friends.
+Apply "the Saturday test" — would a culturally curious couple in their 20s-30s genuinely consider doing this on a weekend? The key question: can you identify WHAT specifically makes this event worth attending (a named performer, a specific exhibition, a notable race, a unique experience)? If the description is too vague to answer that, EXCLUDE.
 
 INCLUDE events that are:
-- Performing arts: concerts, ballet, orchestra, opera, theatre, dance, comedy — ONLY if featuring internationally or regionally recognized performers, award-winning productions, premieres, or genuinely rare appearances
-- Exhibitions: museum shows, art exhibitions — ONLY if featuring major artists, landmark collections, international loans, or critically acclaimed work
-- Sports: major tournaments, championship events, international competitions — NOT local league matches or routine fixtures
-- Music: live music — ONLY headliner-level acts, major festivals, or genuinely notable performances (not every local band gig)
-- Film: premieres, major film festivals, director Q&As with notable filmmakers — NOT regular screenings or small indie series
-- Food & drink: food festivals, celebrity chef events, unique culinary experiences — NOT generic wine tastings or routine supper clubs
-- Cultural: talks by internationally known authors/speakers, major cultural festivals — NOT every book launch or small talk
-- Active: marquee races (marathon, triathlon), major outdoor festivals — NOT every fun run or community jog
-- Truly unique one-off experiences that would be hard to replicate
+- Performing arts: concerts, ballet, orchestra, opera, theatre, dance, comedy — featuring named performers, specific productions, or limited runs
+- Exhibitions: museum shows, art exhibitions, gallery openings, photography shows
+- Sports: spectator sports events, tournaments, major races (as a viewer or participant)
+- Music: live music of any genre — if there's a named act or a clear draw (festival, notable venue event)
+- Film: screenings, film festivals, special cinema events, director Q&As
+- Food & drink: wine tastings, food festivals, supper clubs, culinary experiences (not just restaurant openings or happy hours)
+- Cultural: author talks, book launches with notable authors, cultural festivals, heritage events
+- Active: notable runs, cycling events, outdoor festivals
+- Unique one-off experiences that a curious person would find interesting
 
 EXCLUDE events that are:
 - Corporate: conferences, networking events, industry summits, LinkedIn-type meetups
-- Promotions: bar deals, 1-for-1 offers, happy hours, brand activations
-- Recurring paid workshops: pottery, candle-making, cooking classes — permanent commercial offerings
+- Promotions: bar deals, 1-for-1 offers, happy hours, brand activations that are just ads
+- Recurring paid workshops: pottery, candle-making, cooking classes — permanent commercial offerings, not events
 - Kids-only: events exclusively for children or families with young kids
 - Webinars or online-only events
 - MLM, crypto meetups, get-rich-quick seminars
 - Generic: networking mixers, vague community gatherings with no specific draw
 - Religious services (cultural religious festivals ARE ok)
-- Routine recurring performances: weekly jazz nights, open mics, regular venue programming
-- Small-scale or unknown acts: local bands without significant following, student showcases, emerging artist solos with no notable draw
-- Free community performances with vague descriptions
-- Anything where you can't identify a specific, compelling reason someone would choose THIS event over staying home
+- Routine recurring programming: weekly jazz nights, open mics, regular venue filler with no specific draw
+- Descriptions too vague to identify what makes the event worth attending
 
 Respond with JSON only:
 {"include": true/false, "reason": "brief explanation"}`;
@@ -78,13 +76,13 @@ Do NOT flag routine events as heads_up, even good ones.
 
 Rate this event's interest from 1-10:
 1-3: Routine, could happen any week — skip
-4-5: Decent but not exciting enough to recommend
-6: Solid event, would mention if someone asked
-7: Good — would actively recommend to friends
+4-5: Decent but fairly generic
+6: Solid event worth recommending — clear draw, specific appeal
+7: Very good, would actively recommend to friends
 8-9: Excellent — would rearrange plans to attend
 10: Once-in-a-lifetime, unmissable
 
-Be brutally honest. Most events are a 4-5. Only give 7+ to events with genuinely notable performers, landmark exhibitions, or truly unique experiences. A 7 should make someone think "I should go to this."
+Be honest but fair. Most events that passed our filter should be a 5-6. Give 7+ to events with genuinely notable performers, landmark exhibitions, or truly unique experiences.
 
 Respond with JSON only:
 {"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}`;
@@ -187,7 +185,7 @@ function formatDateForLlm(isoDate: string): string {
   });
 }
 
-const SCORE_THRESHOLD = 7;
+const SCORE_THRESHOLD = 6;
 const CONCURRENCY = 5;
 const BATCH_DELAY_MS = 1000;
 

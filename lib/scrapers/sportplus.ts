@@ -58,20 +58,25 @@ function extractEvents(html: string): WixEvent[] {
     return [];
   }
 
-  // Iterate widget keys to find the one containing events.events
+  // Iterate ALL widget keys and accumulate events from each.
+  // The page can have multiple event widgets (e.g. upcoming, featured).
+  // Note: hasMore can't be paginated — it's a Wix client-side API, not available server-side.
+  const allEvents: WixEvent[] = [];
   for (const widgetKey of Object.keys(appData)) {
     const widget = appData[widgetKey] as Record<string, unknown> | undefined;
     const eventsContainer = widget?.events as { events?: WixEvent[]; hasMore?: boolean } | undefined;
     if (eventsContainer?.events) {
+      allEvents.push(...eventsContainer.events);
       if (eventsContainer.hasMore) {
-        console.warn("[sportplus] Warning: hasMore=true — some events may be missing");
+        console.warn(`[sportplus] Widget ${widgetKey} has hasMore=true — some events may be missing (Wix client-side pagination not available server-side)`);
       }
-      return eventsContainer.events;
     }
   }
 
-  console.warn("[sportplus] No events array found in any widget");
-  return [];
+  if (allEvents.length === 0) {
+    console.warn("[sportplus] No events array found in any widget");
+  }
+  return allEvents;
 }
 
 export async function scrapeSportPlus(): Promise<number> {

@@ -4,8 +4,14 @@ import { initializeDb, upsertEvent } from "../db";
 const SEARCH_URLS = [
   "https://www.eventbrite.sg/d/singapore--singapore/events--this-week/",
   "https://www.eventbrite.sg/d/singapore--singapore/events--next-week/",
+  "https://www.eventbrite.sg/d/singapore--singapore/music--events/",
+  "https://www.eventbrite.sg/d/singapore--singapore/performing-visual-arts--events/",
+  "https://www.eventbrite.sg/d/singapore--singapore/food-and-drink--events/",
+  "https://www.eventbrite.sg/d/singapore--singapore/film-media-entertainment--events/",
+  "https://www.eventbrite.sg/d/singapore--singapore/sports-fitness--events/",
+  "https://www.eventbrite.sg/d/singapore--singapore/health--events/",
 ];
-const MAX_PAGES = 5;
+const MAX_PAGES = 3; // 8 URLs × 3 pages = 24 requests max; seenUrls handles cross-category dedup
 const USER_AGENT = "SGEventsCuration/1.0";
 
 interface EventbriteEvent {
