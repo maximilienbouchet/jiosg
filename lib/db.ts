@@ -370,6 +370,14 @@ export async function getActiveSubscribers(): Promise<{ id: string; email: strin
   return result.rows as unknown as { id: string; email: string; unsubscribe_token: string }[];
 }
 
+export async function getAllSubscribers(): Promise<{ id: string; email: string; subscribed_at: string; is_active: number }[]> {
+  const db = getClient();
+  const result = await db.execute(
+    "SELECT id, email, subscribed_at, is_active FROM subscribers ORDER BY subscribed_at DESC"
+  );
+  return result.rows as unknown as { id: string; email: string; subscribed_at: string; is_active: number }[];
+}
+
 export interface ScraperRunRow {
   id: string;
   source: string;

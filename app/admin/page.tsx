@@ -5,8 +5,9 @@ import { EventList } from "../../components/admin/EventList";
 import { AddEventForm } from "../../components/admin/AddEventForm";
 import { FeedbackView } from "../../components/admin/FeedbackView";
 import { ScraperHealth } from "../../components/admin/ScraperHealth";
+import { SubscriberList } from "../../components/admin/SubscriberList";
 
-type Tab = "events" | "add" | "feedback" | "health";
+type Tab = "events" | "add" | "feedback" | "health" | "subscribers";
 
 export default function AdminPage() {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
@@ -86,6 +87,7 @@ export default function AdminPage() {
     { key: "add", label: "Add Event" },
     { key: "feedback", label: "Feedback" },
     { key: "health", label: "Scraper Health" },
+    { key: "subscribers", label: "Subscribers" },
   ];
 
   return (
@@ -125,6 +127,7 @@ export default function AdminPage() {
       {activeTab === "add" && <AddEventForm />}
       {activeTab === "feedback" && <FeedbackView />}
       {activeTab === "health" && <ScraperHealth />}
+      {activeTab === "subscribers" && <SubscriberList />}
     </div>
   );
 }
