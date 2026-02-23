@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processUnfilteredEvents } from "../../../../lib/llm";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await processUnfilteredEvents(20);
+    const result = await processUnfilteredEvents(10);
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     const message =

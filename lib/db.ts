@@ -24,6 +24,7 @@ export interface EventRow {
   is_heads_up: number;
   is_duplicate: number;
   duplicate_of: string | null;
+  enriched_description: string | null;
   llm_score: number | null;
   thumbs_up: number;
   thumbs_down: number;
@@ -75,6 +76,9 @@ export async function initializeDb(): Promise<void> {
   }
   if (!columns.some((c) => c.name === "duplicate_of")) {
     await db.execute("ALTER TABLE events ADD COLUMN duplicate_of TEXT");
+  }
+  if (!columns.some((c) => c.name === "enriched_description")) {
+    await db.execute("ALTER TABLE events ADD COLUMN enriched_description TEXT");
   }
 
   dbInitialized = true;
@@ -280,6 +284,14 @@ export async function updateEventLlmResults(
       data.llm_score ?? null,
       eventId,
     ],
+  });
+}
+
+export async function updateEnrichedDescription(eventId: string, description: string): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: "UPDATE events SET enriched_description = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [description, eventId],
   });
 }
 

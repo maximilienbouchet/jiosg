@@ -12,7 +12,7 @@ const mockEvents: EventRow[] = [
     scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
     blurb: "World-class table tennis returns with $1.55M in prize money.",
     tags: JSON.stringify(["game on", "bring someone"]),
-    is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, llm_score: 85,
+    is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 85,
     thumbs_up: 3, thumbs_down: 0, created_at: "2026-02-20", updated_at: "2026-02-20",
   },
   {
@@ -23,7 +23,7 @@ const mockEvents: EventRow[] = [
     scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
     blurb: "San Francisco-based drummer Akira Tana brings bop and swing to Esplanade.",
     tags: JSON.stringify(["live & loud", "culture fix"]),
-    is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, llm_score: 90,
+    is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 90,
     thumbs_up: 5, thumbs_down: 1, created_at: "2026-02-20", updated_at: "2026-02-20",
   },
   {
@@ -34,7 +34,7 @@ const mockEvents: EventRow[] = [
     scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
     blurb: "Twelve natural wine importers pour their best in a hawker centre setting.",
     tags: JSON.stringify(["taste test", "try lah"]),
-    is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, llm_score: 88,
+    is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 88,
     thumbs_up: 8, thumbs_down: 0, created_at: "2026-02-20", updated_at: "2026-02-20",
   },
 ];
@@ -48,7 +48,7 @@ const mockHeadsUp: EventRow[] = [
     scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
     blurb: "The chef talks fermentation \u2014 tickets selling fast.",
     tags: JSON.stringify(["taste test", "once only"]),
-    is_manually_added: 1, is_published: 1, is_heads_up: 1, is_duplicate: 0, duplicate_of: null, llm_score: 95,
+    is_manually_added: 1, is_published: 1, is_heads_up: 1, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 95,
     thumbs_up: 12, thumbs_down: 0, created_at: "2026-02-20", updated_at: "2026-02-20",
   },
 ];

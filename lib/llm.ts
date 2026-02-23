@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ALL_TAGS } from "./tags";
-import { getUnprocessedEvents, countUnprocessedEvents, updateEventLlmResults, type EventRow } from "./db";
+import { getUnprocessedEvents, countUnprocessedEvents, updateEventLlmResults, updateEnrichedDescription, type EventRow } from "./db";
+import { enrichDescription } from "./enrich";
 import { runDeduplication } from "./dedup";
 
 const MODEL = "claude-haiku-4-5-20251001";
@@ -47,6 +48,8 @@ EXCLUDE events that are:
 - Religious services (cultural religious festivals ARE ok)
 - Routine recurring programming: weekly jazz nights, open mics, regular venue filler with no specific draw
 - Descriptions too vague to identify what makes the event worth attending
+
+If the description is brief but the event type and venue are clearly identifiable, lean toward INCLUDE — short descriptions don't necessarily mean low-quality events.
 
 Respond with JSON only:
 {"include": true/false, "reason": "brief explanation"}`;
@@ -97,13 +100,15 @@ export async function filterEvent(
   rawTitle: string,
   rawDescription: string | null,
   venue: string,
-  dates: string
+  dates: string,
+  source?: string
 ): Promise<FilterResult> {
   const userMessage = [
     `Title: ${rawTitle}`,
     `Description: ${rawDescription || "N/A"}`,
     `Venue: ${venue}`,
     `Dates: ${dates}`,
+    ...(source ? [`Source: ${source}`] : []),
   ].join("\n");
 
   try {
@@ -188,6 +193,7 @@ function formatDateForLlm(isoDate: string): string {
 const SCORE_THRESHOLD = 6;
 const CONCURRENCY = 5;
 const BATCH_DELAY_MS = 1000;
+const THIN_DESCRIPTION_THRESHOLD = 100;
 
 async function processSingleEvent(event: EventRow): Promise<"included" | "excluded"> {
   const dateStr = formatDateForLlm(event.event_date_start);
@@ -195,11 +201,23 @@ async function processSingleEvent(event: EventRow): Promise<"included" | "exclud
     ? ` – ${formatDateForLlm(event.event_date_end)}`
     : "";
 
+  // Enrich thin descriptions by fetching the actual event page
+  let description = event.enriched_description ?? event.raw_description;
+  if (!description || description.length < THIN_DESCRIPTION_THRESHOLD) {
+    const enriched = await enrichDescription(event.source_url);
+    if (enriched) {
+      description = enriched;
+      await updateEnrichedDescription(event.id, enriched);
+      console.log(`[enrich] ${event.raw_title.slice(0, 50)} — fetched ${enriched.length} chars`);
+    }
+  }
+
   const filterResult = await filterEvent(
     event.raw_title,
-    event.raw_description,
+    description,
     event.venue,
-    dateStr + endDateStr
+    dateStr + endDateStr,
+    event.source
   );
 
   if (!filterResult.include) {
@@ -217,7 +235,7 @@ async function processSingleEvent(event: EventRow): Promise<"included" | "exclud
 
   const blurbResult = await generateBlurbAndTags(
     event.raw_title,
-    event.raw_description,
+    description,
     event.venue
   );
 
@@ -237,7 +255,7 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function processUnfilteredEvents(limit = 20): Promise<{
+export async function processUnfilteredEvents(limit = 10): Promise<{
   processed: number;
   included: number;
   excluded: number;

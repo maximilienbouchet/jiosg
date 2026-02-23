@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { isAdminAuthenticated } from "../../../../lib/admin-auth";
 import { generateBlurbAndTags } from "../../../../lib/llm";
+import { enrichDescription } from "../../../../lib/enrich";
 
 export const maxDuration = 30;
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
       clearTimeout(timeout);
     }
 
-    // Parse with cheerio
+    // Parse with cheerio for title and venue
     const $ = cheerio.load(html);
 
     const rawTitle =
@@ -72,16 +73,16 @@ export async function POST(request: NextRequest) {
       $("title").text().trim() ||
       "Untitled Event";
 
-    const rawDescription =
-      $('meta[property="og:description"]').attr("content") ||
-      $('meta[name="description"]').attr("content") ||
-      $("body").text().replace(/\s+/g, " ").trim().slice(0, 2000) ||
-      null;
-
     const venue =
       $('meta[property="og:site_name"]').attr("content") ||
       parsedUrl.hostname.replace("www.", "") ||
       "";
+
+    // Use shared enrichment for description (handles structured data, meta tags, body text)
+    const rawDescription = await enrichDescription(url) ||
+      $('meta[property="og:description"]').attr("content") ||
+      $('meta[name="description"]').attr("content") ||
+      null;
 
     // Skip filter step (admin IS the filter) — only generate blurb + tags
     const { blurb, tags } = await generateBlurbAndTags(

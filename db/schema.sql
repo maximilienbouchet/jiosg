@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS events (
   is_heads_up INTEGER NOT NULL DEFAULT 0,
   is_duplicate INTEGER NOT NULL DEFAULT 0,
   duplicate_of TEXT,
+  enriched_description TEXT,
   llm_score INTEGER,
   thumbs_up INTEGER NOT NULL DEFAULT 0,
   thumbs_down INTEGER NOT NULL DEFAULT 0,

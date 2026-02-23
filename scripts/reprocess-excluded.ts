@@ -19,7 +19,22 @@ async function main() {
   });
   console.log(`[reset] Set llm_included = NULL for ${resetResult.rowsAffected} excluded future events`);
 
-  // 2. Re-publish events that passed the filter with score >= 6 but weren't published (old threshold was 7)
+  // 2. Reset Eventbrite/SportPlus events for re-evaluation with enriched descriptions
+  const enrichResetResult = await db.execute({
+    sql: `UPDATE events
+          SET llm_included = NULL, llm_filter_reason = NULL,
+              enriched_description = NULL, blurb = NULL, tags = NULL,
+              is_published = 0, llm_score = NULL,
+              updated_at = datetime('now')
+          WHERE source IN ('eventbrite', 'sportplus')
+            AND llm_included IS NOT NULL
+            AND event_date_start >= date('now')
+            AND is_duplicate = 0`,
+    args: [],
+  });
+  console.log(`[enrich-reset] Reset ${enrichResetResult.rowsAffected} Eventbrite/SportPlus events for re-evaluation with enrichment`);
+
+  // 3. Re-publish events that passed the filter with score >= 6 but weren't published (old threshold was 7)
   const republishResult = await db.execute({
     sql: `UPDATE events
           SET is_published = 1, updated_at = datetime('now')
@@ -32,7 +47,7 @@ async function main() {
   });
   console.log(`[republish] Published ${republishResult.rowsAffected} events with score >= 6`);
 
-  // 3. Show summary of what's now pending re-evaluation
+  // 4. Show summary of what's now pending re-evaluation
   const pending = await db.execute({
     sql: `SELECT COUNT(*) as count FROM events WHERE llm_included IS NULL AND is_duplicate = 0`,
     args: [],
