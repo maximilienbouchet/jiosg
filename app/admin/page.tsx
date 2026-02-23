@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { EventList } from "../../components/admin/EventList";
 import { AddEventForm } from "../../components/admin/AddEventForm";
 import { FeedbackView } from "../../components/admin/FeedbackView";
+import { ScraperHealth } from "../../components/admin/ScraperHealth";
 
-type Tab = "events" | "add" | "feedback";
+type Tab = "events" | "add" | "feedback" | "health";
 
 export default function AdminPage() {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
@@ -84,6 +85,7 @@ export default function AdminPage() {
     { key: "events", label: "Events" },
     { key: "add", label: "Add Event" },
     { key: "feedback", label: "Feedback" },
+    { key: "health", label: "Scraper Health" },
   ];
 
   return (
@@ -122,6 +124,7 @@ export default function AdminPage() {
       {activeTab === "events" && <EventList />}
       {activeTab === "add" && <AddEventForm />}
       {activeTab === "feedback" && <FeedbackView />}
+      {activeTab === "health" && <ScraperHealth />}
     </div>
   );
 }

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAllScrapers } from "../../../../lib/scrapers";
+import { initializeDb, insertScraperRun } from "../../../../lib/db";
+import { sendScraperAlertEmail } from "../../../../lib/email";
+
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus"];
 
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -20,6 +24,31 @@ export async function POST(request: NextRequest) {
 
   const { total, bySource, errors } = await runAllScrapers();
 
+  // Log runs to scraper_runs table
+  initializeDb();
+  for (const source of ALL_SOURCES) {
+    if (source in errors) {
+      insertScraperRun({ source, events_found: 0, error: errors[source] });
+    } else {
+      insertScraperRun({ source, events_found: bySource[source] ?? 0, error: null });
+    }
+  }
+
+  // Check for issues and send alert if needed
+  const zeroSources = ALL_SOURCES.filter(
+    (s) => !(s in errors) && (bySource[s] ?? 0) === 0
+  );
+  const hasIssues = zeroSources.length > 0 || Object.keys(errors).length > 0;
+
+  let alert = null;
+  if (hasIssues) {
+    alert = await sendScraperAlertEmail({
+      zeroSources,
+      errorSources: errors,
+      bySource,
+    });
+  }
+
   const hasErrors = Object.keys(errors).length > 0;
   const message = hasErrors
     ? `Scraped ${total} new events with ${Object.keys(errors).length} error(s)`
@@ -31,5 +60,6 @@ export async function POST(request: NextRequest) {
     bySource,
     errors,
     message,
+    alert,
   });
 }

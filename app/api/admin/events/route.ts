@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
     isManuallyAdded: e.is_manually_added,
     isPublished: e.is_published,
     isHeadsUp: e.is_heads_up,
+    isDuplicate: e.is_duplicate,
+    duplicateOf: e.duplicate_of,
     thumbsUp: e.thumbs_up,
     thumbsDown: e.thumbs_down,
     createdAt: e.created_at,

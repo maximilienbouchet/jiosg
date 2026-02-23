@@ -23,6 +23,8 @@ export interface EventRow {
   is_manually_added: number;
   is_published: number;
   is_heads_up: number;
+  is_duplicate: number;
+  duplicate_of: string | null;
   llm_score: number | null;
   thumbs_up: number;
   thumbs_down: number;
@@ -52,6 +54,12 @@ export function initializeDb(): void {
   }
   if (!columns.some((c) => c.name === "llm_score")) {
     database.exec("ALTER TABLE events ADD COLUMN llm_score INTEGER");
+  }
+  if (!columns.some((c) => c.name === "is_duplicate")) {
+    database.exec("ALTER TABLE events ADD COLUMN is_duplicate INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.some((c) => c.name === "duplicate_of")) {
+    database.exec("ALTER TABLE events ADD COLUMN duplicate_of TEXT");
   }
 }
 
@@ -165,8 +173,8 @@ export function upsertEvent(event: {
 export function getUnprocessedEvents(limit?: number): EventRow[] {
   const database = getDb();
   const sql = limit
-    ? `SELECT * FROM events WHERE llm_included IS NULL ORDER BY event_date_start ASC LIMIT ?`
-    : `SELECT * FROM events WHERE llm_included IS NULL ORDER BY event_date_start ASC`;
+    ? `SELECT * FROM events WHERE llm_included IS NULL AND is_duplicate = 0 ORDER BY event_date_start ASC LIMIT ?`
+    : `SELECT * FROM events WHERE llm_included IS NULL AND is_duplicate = 0 ORDER BY event_date_start ASC`;
   const stmt = database.prepare(sql);
   return (limit ? stmt.all(limit) : stmt.all()) as EventRow[];
 }
@@ -174,9 +182,34 @@ export function getUnprocessedEvents(limit?: number): EventRow[] {
 export function countUnprocessedEvents(): number {
   const database = getDb();
   const row = database
-    .prepare("SELECT COUNT(*) as count FROM events WHERE llm_included IS NULL")
+    .prepare("SELECT COUNT(*) as count FROM events WHERE llm_included IS NULL AND is_duplicate = 0")
     .get() as { count: number };
   return row.count;
+}
+
+export function getUnprocessedNonDuplicateEvents(): EventRow[] {
+  const database = getDb();
+  return database
+    .prepare("SELECT * FROM events WHERE llm_included IS NULL AND is_duplicate = 0 ORDER BY event_date_start ASC")
+    .all() as EventRow[];
+}
+
+export function getPotentialDuplicateTargets(minDate: string, maxDate: string): EventRow[] {
+  const database = getDb();
+  return database
+    .prepare(`
+      SELECT * FROM events
+      WHERE is_duplicate = 0
+        AND date(event_date_start) BETWEEN date(?, '-7 days') AND date(?, '+7 days')
+    `)
+    .all(minDate, maxDate) as EventRow[];
+}
+
+export function markAsDuplicate(eventId: string, canonicalId: string): void {
+  const database = getDb();
+  database
+    .prepare("UPDATE events SET is_duplicate = 1, duplicate_of = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(canonicalId, eventId);
 }
 
 export function updateEventLlmResults(
@@ -243,7 +276,7 @@ export function getEventById(eventId: string): EventRow | undefined {
 
 const ALLOWED_UPDATE_COLUMNS = new Set([
   "raw_title", "venue", "blurb", "tags",
-  "is_published", "is_heads_up", "llm_score",
+  "is_published", "is_heads_up", "is_duplicate", "llm_score",
   "event_date_start", "event_date_end",
 ]);
 
@@ -292,6 +325,37 @@ export function getActiveSubscribers(): { id: string; email: string; unsubscribe
   return database.prepare(
     `SELECT id, email, unsubscribe_token FROM subscribers WHERE is_active = 1`
   ).all() as { id: string; email: string; unsubscribe_token: string }[];
+}
+
+export interface ScraperRunRow {
+  id: string;
+  source: string;
+  events_found: number;
+  error: string | null;
+  ran_at: string;
+}
+
+export function insertScraperRun(run: {
+  source: string;
+  events_found: number;
+  error: string | null;
+}): void {
+  const database = getDb();
+  const stmt = database.prepare(`
+    INSERT INTO scraper_runs (id, source, events_found, error, ran_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+  `);
+  stmt.run(crypto.randomUUID(), run.source, run.events_found, run.error);
+}
+
+export function getRecentScraperRuns(days = 7): ScraperRunRow[] {
+  const database = getDb();
+  const stmt = database.prepare(`
+    SELECT * FROM scraper_runs
+    WHERE ran_at >= datetime('now', ? || ' days')
+    ORDER BY ran_at DESC
+  `);
+  return stmt.all(`-${days}`) as ScraperRunRow[];
 }
 
 export function deactivateSubscriber(token: string): boolean {

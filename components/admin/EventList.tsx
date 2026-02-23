@@ -17,6 +17,8 @@ interface AdminEvent {
   isManuallyAdded: number;
   isPublished: number;
   isHeadsUp: number;
+  isDuplicate: number;
+  duplicateOf: string | null;
   thumbsUp: number;
   thumbsDown: number;
 }
@@ -160,12 +162,15 @@ export function EventList() {
           </thead>
           <tbody>
             {filtered.map((event) => (
-              <tr key={event.id} className="border-b border-gray-100 hover:bg-gray-50">
+              <tr key={event.id} className={`border-b border-gray-100 hover:bg-gray-50 ${event.isDuplicate ? "opacity-40" : ""}`}>
                 <td className="py-2 pr-3 whitespace-nowrap text-gray-600">
                   {event.eventDateStart?.slice(0, 10) || "—"}
                 </td>
                 <td className="py-2 pr-3">
                   <div className="font-medium text-gray-900 max-w-xs truncate">
+                    {event.isDuplicate ? (
+                      <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 mr-1.5 align-middle">DUP</span>
+                    ) : null}
                     {event.rawTitle}
                   </div>
                   {event.blurb && (

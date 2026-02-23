@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS events (
   is_manually_added INTEGER NOT NULL DEFAULT 0,
   is_published INTEGER NOT NULL DEFAULT 0,
   is_heads_up INTEGER NOT NULL DEFAULT 0,
+  is_duplicate INTEGER NOT NULL DEFAULT 0,
+  duplicate_of TEXT,
   llm_score INTEGER,
   thumbs_up INTEGER NOT NULL DEFAULT 0,
   thumbs_down INTEGER NOT NULL DEFAULT 0,
@@ -38,3 +40,13 @@ CREATE INDEX IF NOT EXISTS idx_events_heads_up ON events(is_heads_up, is_publish
 
 CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(is_active);
 CREATE INDEX IF NOT EXISTS idx_subscribers_token ON subscribers(unsubscribe_token);
+
+CREATE TABLE IF NOT EXISTS scraper_runs (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  events_found INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  ran_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_scraper_runs_source_ran ON scraper_runs(source, ran_at);

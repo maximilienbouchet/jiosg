@@ -66,7 +66,8 @@
   3. **Esplanade.com** — performing arts, concerts, recitals
   4. **SportPlus.sg** — running events, community sports, fitness events
 - Scrapers write raw events to database with source, scraped date, raw title, raw description, URL, venue, dates
-- **Health check:** if a scraper returns 0 events, log a warning. If 0 events for 3+ days, send an alert email to admin
+- **Cross-source deduplication:** After scraping and before LLM processing, an algorithmic dedup step (no LLM calls) fuzzy-matches events on title + date + venue across sources. Duplicates are marked in the DB (`is_duplicate`, `duplicate_of`) and skipped by the LLM pipeline. Admin can manually un-mark duplicates via the PATCH endpoint.
+- **Health monitoring:** Each scraper run is logged to the `scraper_runs` table (source, event count, error, timestamp). If any scraper returns 0 events or errors during a cron run, an alert email is sent to `ADMIN_EMAIL`. The admin panel includes a "Scraper Health" tab showing the last 7 days of run history with status indicators (OK / 0 events / Error) per source.
 
 ### 3.4 LLM Pipeline (two separate calls)
 
@@ -138,6 +139,8 @@ events
 ├── is_manually_added   (boolean, default false)
 ├── is_published        (boolean, default false — true after LLM + approval)
 ├── is_heads_up         (boolean, default false — LLM flag for notable events worth booking early)
+├── is_duplicate        (boolean, default false — algorithmically detected cross-source duplicate)
+├── duplicate_of        (UUID, nullable — references the canonical event this is a duplicate of)
 ├── thumbs_up           (integer, default 0)
 ├── thumbs_down         (integer, default 0)
 ├── created_at          (datetime)
@@ -149,6 +152,13 @@ subscribers
 ├── subscribed_at       (datetime)
 ├── is_active           (boolean, default true)
 ├── unsubscribe_token   (string, unique)
+
+scraper_runs
+├── id                  (UUID, primary key)
+├── source              (string — scraper name e.g. "thekallang", "eventbrite")
+├── events_found        (integer, default 0 — number of new events scraped)
+├── error               (string, nullable — error message if scraper failed)
+├── ran_at              (datetime — when the run occurred)
 ```
 
 Deduplication: before inserting a scraped event, check if `source_url` already exists. If yes, update raw fields but don't re-run LLM.

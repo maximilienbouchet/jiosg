@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ALL_TAGS } from "./tags";
 import { getUnprocessedEvents, countUnprocessedEvents, updateEventLlmResults, type EventRow } from "./db";
+import { runDeduplication } from "./dedup";
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -242,9 +243,18 @@ export async function processUnfilteredEvents(limit = 20): Promise<{
   excluded: number;
   errors: number;
   remaining: number;
+  deduplicated: number;
 }> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY environment variable is not set");
+  }
+
+  const dedupResult = runDeduplication();
+  if (dedupResult.marked > 0) {
+    console.log(`[dedup] Marked ${dedupResult.marked} duplicate(s)`);
+    for (const pair of dedupResult.pairs) {
+      console.log(`  "${pair.duplicateTitle}" -> dup of "${pair.canonicalTitle}"`);
+    }
   }
 
   const events = getUnprocessedEvents(limit);
@@ -280,5 +290,5 @@ export async function processUnfilteredEvents(limit = 20): Promise<{
 
   const remaining = totalUnprocessed - events.length;
 
-  return { processed, included, excluded, errors, remaining };
+  return { processed, included, excluded, errors, remaining, deduplicated: dedupResult.marked };
 }

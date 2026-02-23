@@ -7,6 +7,69 @@ import {
   EventRow,
 } from "./db";
 
+export async function sendScraperAlertEmail(alert: {
+  zeroSources: string[];
+  errorSources: Record<string, string>;
+  bySource: Record<string, number>;
+}): Promise<{ sent: boolean; error: string | null }> {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    console.warn("[scraper-alert] ADMIN_EMAIL not configured, skipping alert");
+    return { sent: false, error: "ADMIN_EMAIL not configured" };
+  }
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("[scraper-alert] RESEND_API_KEY not configured, skipping alert");
+    return { sent: false, error: "RESEND_API_KEY not configured" };
+  }
+
+  const now = new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" });
+
+  let body = `Scraper alert — ${now} SGT\n\n`;
+
+  if (alert.zeroSources.length > 0) {
+    body += `0 events returned:\n`;
+    for (const src of alert.zeroSources) {
+      body += `  - ${src}\n`;
+    }
+    body += `\n`;
+  }
+
+  if (Object.keys(alert.errorSources).length > 0) {
+    body += `Errors:\n`;
+    for (const [src, msg] of Object.entries(alert.errorSources)) {
+      body += `  - ${src}: ${msg}\n`;
+    }
+    body += `\n`;
+  }
+
+  body += `Full results:\n`;
+  for (const [src, count] of Object.entries(alert.bySource)) {
+    body += `  - ${src}: ${count} events\n`;
+  }
+  for (const src of Object.keys(alert.errorSources)) {
+    if (!(src in alert.bySource)) {
+      body += `  - ${src}: FAILED\n`;
+    }
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.FROM_EMAIL || "jio <onboarding@resend.dev>";
+
+  try {
+    await resend.emails.send({
+      from,
+      to: adminEmail,
+      subject: "\uD83D\uDEA8 jio scraper alert",
+      text: body,
+    });
+    return { sent: true, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[scraper-alert] Failed to send alert:", message);
+    return { sent: false, error: message };
+  }
+}
+
 const EMAIL_TAG_COLORS: Record<string, string> = {
   "live & loud": "#3B82F6",
   "culture fix": "#7C3AED",
