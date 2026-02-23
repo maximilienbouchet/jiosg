@@ -35,6 +35,7 @@ export function EventList() {
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     rawTitle: "",
@@ -127,9 +128,13 @@ export function EventList() {
     }));
   }
 
-  const filtered = events.filter((e) =>
-    e.rawTitle.toLowerCase().includes(search.toLowerCase())
-  );
+  const sources = [...new Set(events.map((e) => e.source))].sort();
+
+  const filtered = events.filter((e) => {
+    if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
+    if (search && !e.rawTitle.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Loading events...</div>;
@@ -137,7 +142,7 @@ export function EventList() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-4">
+      <div className="mb-4 flex items-center gap-4 flex-wrap">
         <input
           type="text"
           placeholder="Search by title..."
@@ -145,6 +150,16 @@ export function EventList() {
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 max-w-sm"
         />
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+        >
+          <option value="all">All sources</option>
+          {sources.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
         <span className="text-sm text-gray-500">{filtered.length} events</span>
       </div>
 
