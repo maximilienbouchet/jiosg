@@ -81,7 +81,7 @@
 - Only runs on events that passed the filter
 - Input: raw event title + description + venue
 - System prompt encodes tone and tag vocabulary (see Section 6)
-- Output: `{ "blurb": "One sentence, max 120 chars", "tags": ["tag1", "tag2"] }`
+- Output: `{ "blurb": "One sentence, max 200 chars", "tags": ["tag1", "tag2"] }`
 - Cost: ~$0.005 per event
 
 **Total monthly cost estimate:** ~200 raw events/day × 30 days = 6,000 filter calls + ~300 blurb calls = well under $5/month on Haiku.
@@ -205,10 +205,10 @@ Respond with JSON only:
 You write one-sentence event descriptions for a curated events website in Singapore. Your audience is 20-40 year olds who are culturally curious.
 
 Rules:
-- Exactly ONE sentence, maximum 120 characters
-- Be specific about what makes this event interesting — don't be generic
-- Don't start with "Join us" or "Don't miss" or "Come and"
-- State the interesting fact: who is performing, what's being shown, why it's notable
+- Exactly ONE sentence, maximum 200 characters
+- Structure: start with WHAT the event IS (e.g. "A jazz trio concert...", "An open-air 10K run...", "A photography exhibition..."), then add the specific draw (who, what's special, why it's worth going)
+- The reader should immediately understand the format (performance, exhibition, race, festival, screening, tasting, talk, etc.) from the first few words
+- Don't start with "Join us", "Don't miss", "Come and", or the event's proper name — lead with the event type
 - Tone: informative and slightly warm, not breathless or salesy
 
 Available tags (assign 1-3 that fit best):

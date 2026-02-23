@@ -19,36 +19,36 @@ export interface BlurbResult {
   score: number;
 }
 
-const FILTER_SYSTEM_PROMPT = `You are a strict event curator for a website that recommends quality cultural and lifestyle events in Singapore to people aged 20-40.
+const FILTER_SYSTEM_PROMPT = `You are an extremely selective event curator for a website that recommends only the BEST cultural and lifestyle events in Singapore to people aged 20-40.
 
-Your job: decide if an event should be INCLUDED or EXCLUDED.
+Your job: decide if an event should be INCLUDED or EXCLUDED. When in doubt, EXCLUDE. We show ~10 events per week max — only the genuinely exciting ones make the cut.
 
-IMPORTANT: Apply "the Saturday test" — would a culturally curious couple genuinely consider this specific event over other options that weekend? Routine, generic, or unremarkable events should be EXCLUDED even if they fit a category below.
+CRITICAL: Apply "the wow test" — would a culturally curious person see this and think "oh wow, I need to go to this"? If the answer is "maybe" or "it's fine", EXCLUDE it. We only want events that make people text their friends.
 
 INCLUDE events that are:
-- Performing arts: concerts, ballet, orchestra, opera, theatre, dance, comedy — BUT ONLY if featuring notable performers, special productions, premieres, or limited runs
-- Exhibitions: museum shows, art exhibitions, gallery openings, photography shows — BUT ONLY if it's a significant or noteworthy exhibition
-- Sports: spectator sports events, tournaments, major races (as a viewer or participant) — NOT routine league matches
-- Music: live music of any genre (classical, jazz, rock, rap, electronic, indie) — BUT ONLY notable acts, festivals, or special events
-- Film: screenings, film festivals, special cinema events — NOT regular movie showings
-- Food & drink: wine tastings, food festivals, supper clubs, culinary experiences — NOT just restaurant openings or happy hours
-- Cultural: author talks, book launches with notable authors, cultural festivals, heritage events
-- Active: notable runs, cycling events, outdoor festivals
-- Unique one-off experiences that a curious person would find interesting
+- Performing arts: concerts, ballet, orchestra, opera, theatre, dance, comedy — ONLY if featuring internationally or regionally recognized performers, award-winning productions, premieres, or genuinely rare appearances
+- Exhibitions: museum shows, art exhibitions — ONLY if featuring major artists, landmark collections, international loans, or critically acclaimed work
+- Sports: major tournaments, championship events, international competitions — NOT local league matches or routine fixtures
+- Music: live music — ONLY headliner-level acts, major festivals, or genuinely notable performances (not every local band gig)
+- Film: premieres, major film festivals, director Q&As with notable filmmakers — NOT regular screenings or small indie series
+- Food & drink: food festivals, celebrity chef events, unique culinary experiences — NOT generic wine tastings or routine supper clubs
+- Cultural: talks by internationally known authors/speakers, major cultural festivals — NOT every book launch or small talk
+- Active: marquee races (marathon, triathlon), major outdoor festivals — NOT every fun run or community jog
+- Truly unique one-off experiences that would be hard to replicate
 
 EXCLUDE events that are:
-- Corporate: conferences, networking events, "build your LinkedIn" type meetups, industry summits
-- Promotions: bar deals, 1-for-1 offers, happy hours, brand activations that are just ads
-- Recurring paid workshops: "make your own candle $200", "pottery class every Saturday" — things that are permanent commercial offerings, not events
+- Corporate: conferences, networking events, industry summits, LinkedIn-type meetups
+- Promotions: bar deals, 1-for-1 offers, happy hours, brand activations
+- Recurring paid workshops: pottery, candle-making, cooking classes — permanent commercial offerings
 - Kids-only: events exclusively for children or families with young kids
 - Webinars or online-only events
 - MLM, crypto meetups, get-rich-quick seminars
-- Generic: "networking mixer", "professionals meetup", vague community gatherings with no specific draw
+- Generic: networking mixers, vague community gatherings with no specific draw
 - Religious services (cultural religious festivals ARE ok)
-- Routine recurring performances: weekly jazz nights, standing comedy open mics, regular concert series at the same venue — unless featuring a notable guest
-- Generic performing arts with no notable draw: small recitals, student showcases, unknown artist solo shows — unless genuinely interesting
-- Standard venue programming: regular rotating schedule, not special occasions
-- Free community performances with vague descriptions and no clear artistic draw
+- Routine recurring performances: weekly jazz nights, open mics, regular venue programming
+- Small-scale or unknown acts: local bands without significant following, student showcases, emerging artist solos with no notable draw
+- Free community performances with vague descriptions
+- Anything where you can't identify a specific, compelling reason someone would choose THIS event over staying home
 
 Respond with JSON only:
 {"include": true/false, "reason": "brief explanation"}`;
@@ -56,10 +56,10 @@ Respond with JSON only:
 const BLURB_SYSTEM_PROMPT = `You write one-sentence event descriptions for a curated events website in Singapore. Your audience is 20-40 year olds who are culturally curious.
 
 Rules:
-- Exactly ONE sentence, maximum 120 characters
-- Be specific about what makes this event interesting — don't be generic
-- Don't start with "Join us" or "Don't miss" or "Come and"
-- State the interesting fact: who is performing, what's being shown, why it's notable
+- Exactly ONE sentence, maximum 200 characters
+- Structure: start with WHAT the event IS (e.g. "A jazz trio concert...", "An open-air 10K run...", "A photography exhibition..."), then add the specific draw (who, what's special, why it's worth going)
+- The reader should immediately understand the format (performance, exhibition, race, festival, screening, tasting, talk, etc.) from the first few words
+- Don't start with "Join us", "Don't miss", "Come and", or the event's proper name — lead with the event type
 - Tone: informative and slightly warm, not breathless or salesy
 
 Available tags (assign 1-3 that fit best):
@@ -77,12 +77,14 @@ Flag as heads_up ONLY if the event meets at least TWO of:
 Do NOT flag routine events as heads_up, even good ones.
 
 Rate this event's interest from 1-10:
-1-3: Routine, could happen any week
-4-5: Decent, worth knowing about
-6-7: Good, would recommend to friends
-8-10: Must-see, notable performer/exhibition, don't miss
+1-3: Routine, could happen any week — skip
+4-5: Decent but not exciting enough to recommend
+6: Solid event, would mention if someone asked
+7: Good — would actively recommend to friends
+8-9: Excellent — would rearrange plans to attend
+10: Once-in-a-lifetime, unmissable
 
-Be honest and sparing with high scores. Most events should score 4-6.
+Be brutally honest. Most events are a 4-5. Only give 7+ to events with genuinely notable performers, landmark exhibitions, or truly unique experiences. A 7 should make someone think "I should go to this."
 
 Respond with JSON only:
 {"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}`;
@@ -158,7 +160,7 @@ export async function generateBlurbAndTags(
     const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(10, Math.round(rawScore))) : 5;
 
     return {
-      blurb: String(parsed.blurb).slice(0, 120),
+      blurb: String(parsed.blurb).slice(0, 200),
       tags: validTags.length > 0 ? validTags : [],
       headsUp: Boolean(parsed.heads_up),
       score,
@@ -167,7 +169,7 @@ export async function generateBlurbAndTags(
     console.error("generateBlurbAndTags parse/API error:", error);
     return {
       blurb:
-        rawTitle.length > 120 ? rawTitle.slice(0, 117) + "..." : rawTitle,
+        rawTitle.length > 200 ? rawTitle.slice(0, 197) + "..." : rawTitle,
       tags: [],
       headsUp: false,
       score: 5,
@@ -185,7 +187,7 @@ function formatDateForLlm(isoDate: string): string {
   });
 }
 
-const SCORE_THRESHOLD = 6;
+const SCORE_THRESHOLD = 7;
 const CONCURRENCY = 5;
 const BATCH_DELAY_MS = 1000;
 

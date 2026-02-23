@@ -29,8 +29,6 @@ export function EventsView() {
   const [loading, setLoading] = useState(true);
 
   const endDate = addDays(startDate, 6);
-  const todaySgt = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
-  const isCurrentWeek = startDate === todaySgt;
 
   useEffect(() => {
     setLoading(true);
@@ -93,7 +91,7 @@ export function EventsView() {
     <div>
       <WeekNav startDate={startDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
       <TagFilter selectedTags={selectedTags} onToggleTag={handleToggleTag} onClearTags={handleClearTags} />
-      <HeadsUpSection visible={isCurrentWeek} />
+      <HeadsUpSection />
 
       {loading ? (
         <p className="text-center py-16 text-[var(--color-muted)]">Loading...</p>

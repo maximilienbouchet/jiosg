@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 
 let client: Client | null = null;
+let dbInitialized = false;
 
 export interface EventRow {
   id: string;
@@ -45,6 +46,8 @@ export function getClient(): Client {
 }
 
 export async function initializeDb(): Promise<void> {
+  if (dbInitialized) return;
+
   const db = getClient();
   const schemaPath = path.join(process.cwd(), "db", "schema.sql");
   const schema = fs.readFileSync(schemaPath, "utf-8");
@@ -73,16 +76,20 @@ export async function initializeDb(): Promise<void> {
   if (!columns.some((c) => c.name === "duplicate_of")) {
     await db.execute("ALTER TABLE events ADD COLUMN duplicate_of TEXT");
   }
+
+  dbInitialized = true;
 }
 
 export async function getPublishedEvents(startDate: string, endDate: string): Promise<EventRow[]> {
   const db = getClient();
+  // Use range comparison on the raw TEXT column so the index is used
+  // startDate/endDate are YYYY-MM-DD, event_date_start is ISO datetime
   const result = await db.execute({
     sql: `
       SELECT * FROM events
       WHERE is_published = 1
-        AND date(event_date_start) >= ?
-        AND date(event_date_start) <= ?
+        AND event_date_start >= ?
+        AND event_date_start < date(?, '+1 day')
       ORDER BY event_date_start ASC
     `,
     args: [startDate, endDate],
@@ -283,7 +290,7 @@ export async function getHeadsUpEvents(todaySgt: string): Promise<EventRow[]> {
       SELECT * FROM events
       WHERE is_heads_up = 1
         AND is_published = 1
-        AND date(event_date_start) > date(?, '+7 days')
+        AND event_date_start > date(?, '+7 days')
       ORDER BY event_date_start ASC
       LIMIT 3
     `,

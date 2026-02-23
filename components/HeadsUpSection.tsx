@@ -106,7 +106,7 @@ export function HeadsUpSection({ visible = true }: { visible?: boolean }) {
               animationPlayState: paused ? "paused" : "running",
             }}
           >
-            {repeatedItems.map(({ event, index, setIndex }, i) => (
+            {repeatedItems.map(({ event, setIndex }) => (
               <a
                 key={`${event.id}-${setIndex}`}
                 href={event.sourceUrl}

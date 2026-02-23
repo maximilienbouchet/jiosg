@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS subscribers (
   unsubscribe_token TEXT NOT NULL UNIQUE
 );
 
+CREATE INDEX IF NOT EXISTS idx_events_published_date ON events(is_published, event_date_start);
 CREATE INDEX IF NOT EXISTS idx_events_heads_up ON events(is_heads_up, is_published, event_date_start);
 
 CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(is_active);
