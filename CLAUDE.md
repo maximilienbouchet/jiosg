@@ -12,7 +12,7 @@ See @SPEC.md for full product requirements, data model, LLM prompts, and build p
 
 - **Framework:** Next.js 14+ (App Router), TypeScript
 - **Styling:** Tailwind CSS (dark mode, mobile-first)
-- **Database:** SQLite via better-sqlite3
+- **Database:** Turso (libSQL cloud SQLite) via @libsql/client
 - **HTML Parsing:** cheerio (for scrapers)
 - **LLM:** Anthropic Claude Haiku API (@anthropic-ai/sdk)
 - **Email:** Resend
@@ -40,7 +40,7 @@ See @SPEC.md for full product requirements, data model, LLM prompts, and build p
 - `/app` — Next.js App Router pages and API routes
 - `/lib` — Database queries, LLM calls, email, scraper logic
 - `/components` — Reusable UI components
-- `/db` — SQLite schema and database file
+- `/db` — SQLite schema file (schema.sql)
 - `/scripts` — CLI scripts for seeding, manual scraping
 
 ## Key Design Decisions
@@ -50,7 +50,7 @@ See @SPEC.md for full product requirements, data model, LLM prompts, and build p
 - Events get 1-3 fun tags (see SPEC.md Section 4 for tag vocabulary)
 - LLM pipeline is two separate calls: filter (include/exclude) then blurb+tags generation
 - Admin panel is a simple password-protected page, not a full auth system
-- SQLite database file lives in /db/events.db — gitignore it, it's ephemeral
+- Database is hosted on Turso (cloud libSQL) — no local db file needed
 - Scrapers run as API routes called by external cron, not as background processes
 
 ## QA & Testing
@@ -75,7 +75,7 @@ When entering plan mode, always follow a maker-checker process:
 ## Important Notes
 
 - NEVER commit .env or .env.local files
-- NEVER commit db/events.db — it should be in .gitignore
+- Required env vars: TURSO_DATABASE_URL, TURSO_AUTH_TOKEN (for database access)
 - The LLM filter prompt in SPEC.md Section 6 is the source of truth for curation rules
 - Tags must come from the fixed vocabulary in SPEC.md Section 4 — don't invent new tags
 - Event blurbs are ONE sentence, max 120 characters

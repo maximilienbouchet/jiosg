@@ -6,7 +6,7 @@ import { runAllScrapers } from "../lib/scrapers";
 
 async function main() {
   console.log("Initializing database...");
-  initializeDb();
+  await initializeDb();
 
   console.log("Running scrapers...\n");
   const { total, bySource, errors } = await runAllScrapers();

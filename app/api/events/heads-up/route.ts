@@ -6,8 +6,8 @@ import { getHeadsUpEvents, initializeDb } from "../../../../lib/db";
 export async function GET() {
   const todaySgt = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
 
-  initializeDb();
-  const rows = getHeadsUpEvents(todaySgt);
+  await initializeDb();
+  const rows = await getHeadsUpEvents(todaySgt);
 
   const events = rows.map((row) => ({
     id: row.id,

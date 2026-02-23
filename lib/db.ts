@@ -1,10 +1,8 @@
-import Database from "better-sqlite3";
-import path from "path";
+import { createClient, type Client, type InValue } from "@libsql/client";
 import fs from "fs";
+import path from "path";
 
-const DB_PATH = path.join(process.cwd(), "db", "events.db");
-
-let db: Database.Database | null = null;
+let client: Client | null = null;
 
 export interface EventRow {
   id: string;
@@ -32,60 +30,77 @@ export interface EventRow {
   updated_at: string;
 }
 
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
+export function getClient(): Client {
+  if (!client) {
+    const url = process.env.TURSO_DATABASE_URL;
+    const authToken = process.env.TURSO_AUTH_TOKEN;
+
+    if (!url) {
+      throw new Error("TURSO_DATABASE_URL environment variable is not set");
+    }
+
+    client = createClient({ url, authToken });
   }
-  return db;
+  return client;
 }
 
-export function initializeDb(): void {
-  const database = getDb();
+export async function initializeDb(): Promise<void> {
+  const db = getClient();
   const schemaPath = path.join(process.cwd(), "db", "schema.sql");
   const schema = fs.readFileSync(schemaPath, "utf-8");
-  database.exec(schema);
+
+  // Split schema on semicolons and execute as batch
+  const statements = schema
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  await db.batch(statements.map((sql) => ({ sql, args: [] })));
 
   // Migrations for existing databases
-  const columns = database.pragma("table_info(events)") as { name: string }[];
+  const columnsResult = await db.execute("SELECT * FROM pragma_table_info('events')");
+  const columns = columnsResult.rows as unknown as { name: string }[];
+
   if (!columns.some((c) => c.name === "is_heads_up")) {
-    database.exec("ALTER TABLE events ADD COLUMN is_heads_up INTEGER NOT NULL DEFAULT 0");
+    await db.execute("ALTER TABLE events ADD COLUMN is_heads_up INTEGER NOT NULL DEFAULT 0");
   }
   if (!columns.some((c) => c.name === "llm_score")) {
-    database.exec("ALTER TABLE events ADD COLUMN llm_score INTEGER");
+    await db.execute("ALTER TABLE events ADD COLUMN llm_score INTEGER");
   }
   if (!columns.some((c) => c.name === "is_duplicate")) {
-    database.exec("ALTER TABLE events ADD COLUMN is_duplicate INTEGER NOT NULL DEFAULT 0");
+    await db.execute("ALTER TABLE events ADD COLUMN is_duplicate INTEGER NOT NULL DEFAULT 0");
   }
   if (!columns.some((c) => c.name === "duplicate_of")) {
-    database.exec("ALTER TABLE events ADD COLUMN duplicate_of TEXT");
+    await db.execute("ALTER TABLE events ADD COLUMN duplicate_of TEXT");
   }
 }
 
-export function getPublishedEvents(startDate: string, endDate: string): EventRow[] {
-  const database = getDb();
-  const stmt = database.prepare(`
-    SELECT * FROM events
-    WHERE is_published = 1
-      AND date(event_date_start) >= ?
-      AND date(event_date_start) <= ?
-    ORDER BY event_date_start ASC
-  `);
-  return stmt.all(startDate, endDate) as EventRow[];
+export async function getPublishedEvents(startDate: string, endDate: string): Promise<EventRow[]> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `
+      SELECT * FROM events
+      WHERE is_published = 1
+        AND date(event_date_start) >= ?
+        AND date(event_date_start) <= ?
+      ORDER BY event_date_start ASC
+    `,
+    args: [startDate, endDate],
+  });
+  return result.rows as unknown as EventRow[];
 }
 
-export function incrementThumbs(eventId: string, direction: "up" | "down"): boolean {
-  const database = getDb();
+export async function incrementThumbs(eventId: string, direction: "up" | "down"): Promise<boolean> {
+  const db = getClient();
   const column = direction === "up" ? "thumbs_up" : "thumbs_down";
-  const stmt = database.prepare(`
-    UPDATE events SET ${column} = ${column} + 1, updated_at = datetime('now') WHERE id = ?
-  `);
-  const result = stmt.run(eventId);
-  return result.changes > 0;
+  const result = await db.execute({
+    sql: `UPDATE events SET ${column} = ${column} + 1, updated_at = datetime('now') WHERE id = ?`,
+    args: [eventId],
+  });
+  return (result.rowsAffected ?? 0) > 0;
 }
 
-export function insertEvent(event: {
+export async function insertEvent(event: {
   id: string;
   source: string;
   source_url: string;
@@ -101,32 +116,34 @@ export function insertEvent(event: {
   is_manually_added: number;
   is_published: number;
   is_heads_up?: number;
-}): void {
-  const database = getDb();
-  const stmt = database.prepare(`
-    INSERT INTO events (
-      id, source, source_url, raw_title, raw_description, venue,
-      event_date_start, event_date_end, scraped_at,
-      llm_included, llm_filter_reason, blurb, tags,
-      is_manually_added, is_published, is_heads_up,
-      thumbs_up, thumbs_down, created_at, updated_at
-    ) VALUES (
-      ?, ?, ?, ?, ?, ?,
-      ?, ?, datetime('now'),
-      ?, ?, ?, ?,
-      ?, ?, ?,
-      0, 0, datetime('now'), datetime('now')
-    )
-  `);
-  stmt.run(
-    event.id, event.source, event.source_url, event.raw_title, event.raw_description, event.venue,
-    event.event_date_start, event.event_date_end,
-    event.llm_included, event.llm_filter_reason, event.blurb, event.tags,
-    event.is_manually_added, event.is_published, event.is_heads_up ?? 0
-  );
+}): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: `
+      INSERT INTO events (
+        id, source, source_url, raw_title, raw_description, venue,
+        event_date_start, event_date_end, scraped_at,
+        llm_included, llm_filter_reason, blurb, tags,
+        is_manually_added, is_published, is_heads_up,
+        thumbs_up, thumbs_down, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, datetime('now'),
+        ?, ?, ?, ?,
+        ?, ?, ?,
+        0, 0, datetime('now'), datetime('now')
+      )
+    `,
+    args: [
+      event.id, event.source, event.source_url, event.raw_title, event.raw_description, event.venue,
+      event.event_date_start, event.event_date_end,
+      event.llm_included, event.llm_filter_reason, event.blurb, event.tags,
+      event.is_manually_added, event.is_published, event.is_heads_up ?? 0,
+    ],
+  });
 }
 
-export function upsertEvent(event: {
+export async function upsertEvent(event: {
   source: string;
   source_url: string;
   raw_title: string;
@@ -134,85 +151,93 @@ export function upsertEvent(event: {
   venue: string;
   event_date_start: string;
   event_date_end: string | null;
-}): { inserted: boolean } {
-  const database = getDb();
-  const existing = database
-    .prepare("SELECT id FROM events WHERE source_url = ?")
-    .get(event.source_url);
+}): Promise<{ inserted: boolean }> {
+  const db = getClient();
 
-  const stmt = database.prepare(`
-    INSERT INTO events (
-      id, source, source_url, raw_title, raw_description, venue,
-      event_date_start, event_date_end, scraped_at,
-      is_manually_added, is_published,
-      thumbs_up, thumbs_down, created_at, updated_at
-    ) VALUES (
-      ?, ?, ?, ?, ?, ?,
-      ?, ?, datetime('now'),
-      0, 0,
-      0, 0, datetime('now'), datetime('now')
-    )
-    ON CONFLICT(source_url) DO UPDATE SET
-      raw_title = excluded.raw_title,
-      raw_description = excluded.raw_description,
-      venue = excluded.venue,
-      event_date_start = excluded.event_date_start,
-      event_date_end = excluded.event_date_end,
-      updated_at = datetime('now')
-  `);
+  const existing = await db.execute({
+    sql: "SELECT id FROM events WHERE source_url = ?",
+    args: [event.source_url],
+  });
 
   const id = crypto.randomUUID();
-  stmt.run(
-    id, event.source, event.source_url, event.raw_title, event.raw_description, event.venue,
-    event.event_date_start, event.event_date_end
-  );
+  await db.execute({
+    sql: `
+      INSERT INTO events (
+        id, source, source_url, raw_title, raw_description, venue,
+        event_date_start, event_date_end, scraped_at,
+        is_manually_added, is_published,
+        thumbs_up, thumbs_down, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, datetime('now'),
+        0, 0,
+        0, 0, datetime('now'), datetime('now')
+      )
+      ON CONFLICT(source_url) DO UPDATE SET
+        raw_title = excluded.raw_title,
+        raw_description = excluded.raw_description,
+        venue = excluded.venue,
+        event_date_start = excluded.event_date_start,
+        event_date_end = excluded.event_date_end,
+        updated_at = datetime('now')
+    `,
+    args: [
+      id, event.source, event.source_url, event.raw_title, event.raw_description, event.venue,
+      event.event_date_start, event.event_date_end,
+    ],
+  });
 
-  return { inserted: !existing };
+  return { inserted: existing.rows.length === 0 };
 }
 
-export function getUnprocessedEvents(limit?: number): EventRow[] {
-  const database = getDb();
+export async function getUnprocessedEvents(limit?: number): Promise<EventRow[]> {
+  const db = getClient();
   const sql = limit
     ? `SELECT * FROM events WHERE llm_included IS NULL AND is_duplicate = 0 ORDER BY event_date_start ASC LIMIT ?`
     : `SELECT * FROM events WHERE llm_included IS NULL AND is_duplicate = 0 ORDER BY event_date_start ASC`;
-  const stmt = database.prepare(sql);
-  return (limit ? stmt.all(limit) : stmt.all()) as EventRow[];
+  const args: InValue[] = limit ? [limit] : [];
+  const result = await db.execute({ sql, args });
+  return result.rows as unknown as EventRow[];
 }
 
-export function countUnprocessedEvents(): number {
-  const database = getDb();
-  const row = database
-    .prepare("SELECT COUNT(*) as count FROM events WHERE llm_included IS NULL AND is_duplicate = 0")
-    .get() as { count: number };
-  return row.count;
+export async function countUnprocessedEvents(): Promise<number> {
+  const db = getClient();
+  const result = await db.execute(
+    "SELECT COUNT(*) as count FROM events WHERE llm_included IS NULL AND is_duplicate = 0"
+  );
+  return Number(result.rows[0].count);
 }
 
-export function getUnprocessedNonDuplicateEvents(): EventRow[] {
-  const database = getDb();
-  return database
-    .prepare("SELECT * FROM events WHERE llm_included IS NULL AND is_duplicate = 0 ORDER BY event_date_start ASC")
-    .all() as EventRow[];
+export async function getUnprocessedNonDuplicateEvents(): Promise<EventRow[]> {
+  const db = getClient();
+  const result = await db.execute(
+    "SELECT * FROM events WHERE llm_included IS NULL AND is_duplicate = 0 ORDER BY event_date_start ASC"
+  );
+  return result.rows as unknown as EventRow[];
 }
 
-export function getPotentialDuplicateTargets(minDate: string, maxDate: string): EventRow[] {
-  const database = getDb();
-  return database
-    .prepare(`
+export async function getPotentialDuplicateTargets(minDate: string, maxDate: string): Promise<EventRow[]> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `
       SELECT * FROM events
       WHERE is_duplicate = 0
         AND date(event_date_start) BETWEEN date(?, '-7 days') AND date(?, '+7 days')
-    `)
-    .all(minDate, maxDate) as EventRow[];
+    `,
+    args: [minDate, maxDate],
+  });
+  return result.rows as unknown as EventRow[];
 }
 
-export function markAsDuplicate(eventId: string, canonicalId: string): void {
-  const database = getDb();
-  database
-    .prepare("UPDATE events SET is_duplicate = 1, duplicate_of = ?, updated_at = datetime('now') WHERE id = ?")
-    .run(canonicalId, eventId);
+export async function markAsDuplicate(eventId: string, canonicalId: string): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: "UPDATE events SET is_duplicate = 1, duplicate_of = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [canonicalId, eventId],
+  });
 }
 
-export function updateEventLlmResults(
+export async function updateEventLlmResults(
   eventId: string,
   data: {
     llm_included: number;
@@ -223,55 +248,63 @@ export function updateEventLlmResults(
     is_heads_up?: number;
     llm_score?: number | null;
   }
-): void {
-  const database = getDb();
-  const stmt = database.prepare(`
-    UPDATE events
-    SET llm_included = ?,
-        llm_filter_reason = ?,
-        blurb = ?,
-        tags = ?,
-        is_published = ?,
-        is_heads_up = ?,
-        llm_score = ?,
-        updated_at = datetime('now')
-    WHERE id = ?
-  `);
-  stmt.run(
-    data.llm_included,
-    data.llm_filter_reason,
-    data.blurb,
-    data.tags ? JSON.stringify(data.tags) : null,
-    data.is_published,
-    data.is_heads_up ?? 0,
-    data.llm_score ?? null,
-    eventId
-  );
+): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: `
+      UPDATE events
+      SET llm_included = ?,
+          llm_filter_reason = ?,
+          blurb = ?,
+          tags = ?,
+          is_published = ?,
+          is_heads_up = ?,
+          llm_score = ?,
+          updated_at = datetime('now')
+      WHERE id = ?
+    `,
+    args: [
+      data.llm_included,
+      data.llm_filter_reason,
+      data.blurb,
+      data.tags ? JSON.stringify(data.tags) : null,
+      data.is_published,
+      data.is_heads_up ?? 0,
+      data.llm_score ?? null,
+      eventId,
+    ],
+  });
 }
 
-export function getHeadsUpEvents(todaySgt: string): EventRow[] {
-  const database = getDb();
-  const stmt = database.prepare(`
-    SELECT * FROM events
-    WHERE is_heads_up = 1
-      AND is_published = 1
-      AND date(event_date_start) > date(?, '+7 days')
-    ORDER BY event_date_start ASC
-    LIMIT 3
-  `);
-  return stmt.all(todaySgt) as EventRow[];
+export async function getHeadsUpEvents(todaySgt: string): Promise<EventRow[]> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `
+      SELECT * FROM events
+      WHERE is_heads_up = 1
+        AND is_published = 1
+        AND date(event_date_start) > date(?, '+7 days')
+      ORDER BY event_date_start ASC
+      LIMIT 3
+    `,
+    args: [todaySgt],
+  });
+  return result.rows as unknown as EventRow[];
 }
 
-export function getAllEvents(): EventRow[] {
-  const database = getDb();
-  const stmt = database.prepare("SELECT * FROM events ORDER BY event_date_start DESC");
-  return stmt.all() as EventRow[];
+export async function getAllEvents(): Promise<EventRow[]> {
+  const db = getClient();
+  const result = await db.execute("SELECT * FROM events ORDER BY event_date_start DESC");
+  return result.rows as unknown as EventRow[];
 }
 
-export function getEventById(eventId: string): EventRow | undefined {
-  const database = getDb();
-  const stmt = database.prepare("SELECT * FROM events WHERE id = ?");
-  return stmt.get(eventId) as EventRow | undefined;
+export async function getEventById(eventId: string): Promise<EventRow | undefined> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: "SELECT * FROM events WHERE id = ?",
+    args: [eventId],
+  });
+  return (result.rows[0] as unknown as EventRow) ?? undefined;
 }
 
 const ALLOWED_UPDATE_COLUMNS = new Set([
@@ -280,18 +313,18 @@ const ALLOWED_UPDATE_COLUMNS = new Set([
   "event_date_start", "event_date_end",
 ]);
 
-export function updateEvent(
+export async function updateEvent(
   eventId: string,
   data: Record<string, unknown>
-): boolean {
-  const database = getDb();
+): Promise<boolean> {
+  const db = getClient();
   const sets: string[] = [];
-  const values: unknown[] = [];
+  const values: InValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     if (!ALLOWED_UPDATE_COLUMNS.has(key)) continue;
     sets.push(`${key} = ?`);
-    values.push(key === "tags" && Array.isArray(value) ? JSON.stringify(value) : value);
+    values.push((key === "tags" && Array.isArray(value) ? JSON.stringify(value) : value) as InValue);
   }
 
   if (sets.length === 0) return false;
@@ -299,32 +332,35 @@ export function updateEvent(
   sets.push("updated_at = datetime('now')");
   values.push(eventId);
 
-  const stmt = database.prepare(
-    `UPDATE events SET ${sets.join(", ")} WHERE id = ?`
-  );
-  const result = stmt.run(...values);
-  return result.changes > 0;
+  const result = await db.execute({
+    sql: `UPDATE events SET ${sets.join(", ")} WHERE id = ?`,
+    args: values,
+  });
+  return (result.rowsAffected ?? 0) > 0;
 }
 
-export function insertSubscriber(
+export async function insertSubscriber(
   id: string,
   email: string,
   unsubscribeToken: string
-): { success: true; alreadyExists: boolean } {
-  const database = getDb();
-  const stmt = database.prepare(`
-    INSERT OR IGNORE INTO subscribers (id, email, subscribed_at, is_active, unsubscribe_token)
-    VALUES (?, ?, datetime('now'), 1, ?)
-  `);
-  const result = stmt.run(id, email, unsubscribeToken);
-  return { success: true, alreadyExists: result.changes === 0 };
+): Promise<{ success: true; alreadyExists: boolean }> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `
+      INSERT OR IGNORE INTO subscribers (id, email, subscribed_at, is_active, unsubscribe_token)
+      VALUES (?, ?, datetime('now'), 1, ?)
+    `,
+    args: [id, email, unsubscribeToken],
+  });
+  return { success: true, alreadyExists: (result.rowsAffected ?? 0) === 0 };
 }
 
-export function getActiveSubscribers(): { id: string; email: string; unsubscribe_token: string }[] {
-  const database = getDb();
-  return database.prepare(
-    `SELECT id, email, unsubscribe_token FROM subscribers WHERE is_active = 1`
-  ).all() as { id: string; email: string; unsubscribe_token: string }[];
+export async function getActiveSubscribers(): Promise<{ id: string; email: string; unsubscribe_token: string }[]> {
+  const db = getClient();
+  const result = await db.execute(
+    "SELECT id, email, unsubscribe_token FROM subscribers WHERE is_active = 1"
+  );
+  return result.rows as unknown as { id: string; email: string; unsubscribe_token: string }[];
 }
 
 export interface ScraperRunRow {
@@ -335,33 +371,39 @@ export interface ScraperRunRow {
   ran_at: string;
 }
 
-export function insertScraperRun(run: {
+export async function insertScraperRun(run: {
   source: string;
   events_found: number;
   error: string | null;
-}): void {
-  const database = getDb();
-  const stmt = database.prepare(`
-    INSERT INTO scraper_runs (id, source, events_found, error, ran_at)
-    VALUES (?, ?, ?, ?, datetime('now'))
-  `);
-  stmt.run(crypto.randomUUID(), run.source, run.events_found, run.error);
+}): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: `
+      INSERT INTO scraper_runs (id, source, events_found, error, ran_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `,
+    args: [crypto.randomUUID(), run.source, run.events_found, run.error],
+  });
 }
 
-export function getRecentScraperRuns(days = 7): ScraperRunRow[] {
-  const database = getDb();
-  const stmt = database.prepare(`
-    SELECT * FROM scraper_runs
-    WHERE ran_at >= datetime('now', ? || ' days')
-    ORDER BY ran_at DESC
-  `);
-  return stmt.all(`-${days}`) as ScraperRunRow[];
+export async function getRecentScraperRuns(days = 7): Promise<ScraperRunRow[]> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `
+      SELECT * FROM scraper_runs
+      WHERE ran_at >= datetime('now', ? || ' days')
+      ORDER BY ran_at DESC
+    `,
+    args: [`-${days}`],
+  });
+  return result.rows as unknown as ScraperRunRow[];
 }
 
-export function deactivateSubscriber(token: string): boolean {
-  const database = getDb();
-  const result = database.prepare(
-    `UPDATE subscribers SET is_active = 0 WHERE unsubscribe_token = ? AND is_active = 1`
-  ).run(token);
-  return result.changes > 0;
+export async function deactivateSubscriber(token: string): Promise<boolean> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: "UPDATE subscribers SET is_active = 0 WHERE unsubscribe_token = ? AND is_active = 1",
+    args: [token],
+  });
+  return (result.rowsAffected ?? 0) > 0;
 }

@@ -93,7 +93,7 @@ function parseCard($: cheerio.CheerioAPI, card: Element): {
 }
 
 export async function scrapeTheKallang(): Promise<number> {
-  initializeDb();
+  await initializeDb();
   let newEvents = 0;
 
   for (let page = 0; page < MAX_PAGES; page++) {
@@ -121,17 +121,17 @@ export async function scrapeTheKallang(): Promise<number> {
       break;
     }
 
-    cards.each((_, card) => {
+    for (const card of cards.toArray()) {
       const parsed = parseCard($, card);
-      if (!parsed) return;
+      if (!parsed) continue;
 
       const { startDate, endDate } = parseDateText(parsed.dateText);
       if (!startDate) {
         console.warn(`[thekallang] Could not parse date for "${parsed.title}": "${parsed.dateText}"`);
-        return;
+        continue;
       }
 
-      const result = upsertEvent({
+      const result = await upsertEvent({
         source: "thekallang",
         source_url: parsed.sourceUrl,
         raw_title: parsed.title,
@@ -144,7 +144,7 @@ export async function scrapeTheKallang(): Promise<number> {
       if (result.inserted) {
         newEvents++;
       }
-    });
+    }
 
     // Check if there's a next page — stop if next link href is empty
     const nextLink = $(".pagination__next a").attr("href");

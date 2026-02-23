@@ -104,7 +104,7 @@ export function parseDisplayDate(
 }
 
 export async function scrapeEsplanade(): Promise<number> {
-  initializeDb();
+  await initializeDb();
   let newEvents = 0;
 
   for (let pageNumber = 1; pageNumber <= MAX_PAGES; pageNumber++) {
@@ -174,7 +174,7 @@ export async function scrapeEsplanade(): Promise<number> {
       ].filter(Boolean);
       const rawDescription = descParts.length > 0 ? descParts.join(" | ") : null;
 
-      const result = upsertEvent({
+      const result = await upsertEvent({
         source: "esplanade",
         source_url: sourceUrl,
         raw_title: listing.PageData.Title,

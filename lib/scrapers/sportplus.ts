@@ -75,7 +75,7 @@ function extractEvents(html: string): WixEvent[] {
 }
 
 export async function scrapeSportPlus(): Promise<number> {
-  initializeDb();
+  await initializeDb();
   let newEvents = 0;
 
   let html: string;
@@ -123,7 +123,7 @@ export async function scrapeSportPlus(): Promise<number> {
       ? `https://www.sportplus.sg/event-details/${event.slug}`
       : PAGE_URL;
 
-    const result = upsertEvent({
+    const result = await upsertEvent({
       source: "sportplus",
       source_url: sourceUrl,
       raw_title: title,

@@ -73,7 +73,7 @@ function normalizeUrl(url: string): string {
 }
 
 export async function scrapeEventbrite(): Promise<number> {
-  initializeDb();
+  await initializeDb();
   let newEvents = 0;
   const seenUrls = new Set<string>();
 
@@ -119,7 +119,7 @@ export async function scrapeEventbrite(): Promise<number> {
             ? event.end_date
             : null;
 
-        const result = upsertEvent({
+        const result = await upsertEvent({
           source: "eventbrite",
           source_url: normalizedUrl,
           raw_title: event.name,

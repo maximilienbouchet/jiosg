@@ -203,7 +203,7 @@ async function processSingleEvent(event: EventRow): Promise<"included" | "exclud
   );
 
   if (!filterResult.include) {
-    updateEventLlmResults(event.id, {
+    await updateEventLlmResults(event.id, {
       llm_included: 0,
       llm_filter_reason: filterResult.reason,
       blurb: null,
@@ -221,7 +221,7 @@ async function processSingleEvent(event: EventRow): Promise<"included" | "exclud
     event.venue
   );
 
-  updateEventLlmResults(event.id, {
+  await updateEventLlmResults(event.id, {
     llm_included: 1,
     llm_filter_reason: filterResult.reason,
     blurb: blurbResult.blurb,
@@ -249,7 +249,7 @@ export async function processUnfilteredEvents(limit = 20): Promise<{
     throw new Error("ANTHROPIC_API_KEY environment variable is not set");
   }
 
-  const dedupResult = runDeduplication();
+  const dedupResult = await runDeduplication();
   if (dedupResult.marked > 0) {
     console.log(`[dedup] Marked ${dedupResult.marked} duplicate(s)`);
     for (const pair of dedupResult.pairs) {
@@ -257,8 +257,8 @@ export async function processUnfilteredEvents(limit = 20): Promise<{
     }
   }
 
-  const events = getUnprocessedEvents(limit);
-  const totalUnprocessed = countUnprocessedEvents();
+  const events = await getUnprocessedEvents(limit);
+  const totalUnprocessed = await countUnprocessedEvents();
   let processed = 0;
   let included = 0;
   let excluded = 0;

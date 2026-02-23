@@ -25,12 +25,12 @@ export async function POST(request: NextRequest) {
   const { total, bySource, errors } = await runAllScrapers();
 
   // Log runs to scraper_runs table
-  initializeDb();
+  await initializeDb();
   for (const source of ALL_SOURCES) {
     if (source in errors) {
-      insertScraperRun({ source, events_found: 0, error: errors[source] });
+      await insertScraperRun({ source, events_found: 0, error: errors[source] });
     } else {
-      insertScraperRun({ source, events_found: bySource[source] ?? 0, error: null });
+      await insertScraperRun({ source, events_found: bySource[source] ?? 0, error: null });
     }
   }
 

@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  initializeDb();
-  const runs = getRecentScraperRuns(7);
+  await initializeDb();
+  const runs = await getRecentScraperRuns(7);
 
   const mapped = runs.map((r) => ({
     id: r.id,

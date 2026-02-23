@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing start or end parameter" }, { status: 400 });
   }
 
-  initializeDb();
-  const rows = getPublishedEvents(start, end);
+  await initializeDb();
+  const rows = await getPublishedEvents(start, end);
 
   const events = rows.map((row) => ({
     id: row.id,
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid eventId or vote" }, { status: 400 });
   }
 
-  initializeDb();
-  const success = incrementThumbs(eventId, vote);
+  await initializeDb();
+  const success = await incrementThumbs(eventId, vote);
   return NextResponse.json({ success });
 }

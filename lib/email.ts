@@ -221,19 +221,19 @@ export async function sendDigestEmail(): Promise<{
     return { sent: 0, failed: 0, skipped: "RESEND_API_KEY not configured", errors: [] };
   }
 
-  initializeDb();
+  await initializeDb();
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
   const endDate = new Date(new Date(today).getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-  const events = getPublishedEvents(today, endDate);
-  const headsUpEvents = getHeadsUpEvents(today);
+  const events = await getPublishedEvents(today, endDate);
+  const headsUpEvents = await getHeadsUpEvents(today);
 
   if (events.length === 0 && headsUpEvents.length === 0) {
     return { sent: 0, failed: 0, skipped: "No events for this week", errors: [] };
   }
 
-  const subscribers = getActiveSubscribers();
+  const subscribers = await getActiveSubscribers();
   if (subscribers.length === 0) {
     return { sent: 0, failed: 0, skipped: "No active subscribers", errors: [] };
   }

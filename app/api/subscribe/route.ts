@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: "Invalid email" }, { status: 400 });
   }
 
-  initializeDb();
-  const { alreadyExists } = insertSubscriber(v4(), trimmed, v4());
+  await initializeDb();
+  const { alreadyExists } = await insertSubscriber(v4(), trimmed, v4());
 
   // Always return success to avoid leaking which emails are subscribed
   return NextResponse.json({ success: true, alreadyExists });

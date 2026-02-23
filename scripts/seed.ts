@@ -1,8 +1,17 @@
 // Seed database with 10 realistic Singapore events for development
 // Run with: npx tsx scripts/seed.ts
+// SAFETY: Refuses to run against Turso production databases
 
 import { v4 } from "uuid";
-import { initializeDb, getDb, insertEvent } from "../lib/db";
+import { initializeDb, getClient, insertEvent } from "../lib/db";
+
+const dbUrl = process.env.TURSO_DATABASE_URL ?? "";
+if (dbUrl.startsWith("libsql://") && !dbUrl.includes("localhost")) {
+  console.error("ERROR: seed.ts cannot run against a remote Turso database.");
+  console.error(`  TURSO_DATABASE_URL = ${dbUrl}`);
+  console.error("Use a local database URL (e.g. file:db/events.db or libsql://localhost) for seeding.");
+  process.exit(1);
+}
 
 function sgDate(daysFromNow: number): string {
   const d = new Date();
@@ -106,17 +115,17 @@ const events: {
   },
 ];
 
-function main() {
+async function main() {
   console.log("Initializing database...");
-  initializeDb();
+  await initializeDb();
 
-  const database = getDb();
-  database.exec("DELETE FROM events");
+  const db = getClient();
+  await db.execute("DELETE FROM events");
   console.log("Cleared existing events.");
 
   for (let i = 0; i < events.length; i++) {
     const e = events[i];
-    insertEvent({
+    await insertEvent({
       id: v4(),
       source: "manual",
       source_url: `https://example.com/seed/${i + 1}`,

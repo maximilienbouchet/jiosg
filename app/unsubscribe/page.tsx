@@ -12,8 +12,8 @@ export default async function UnsubscribePage({
   if (!token) {
     status = "invalid";
   } else {
-    initializeDb();
-    const deactivated = deactivateSubscriber(token);
+    await initializeDb();
+    const deactivated = await deactivateSubscriber(token);
     status = deactivated ? "success" : "not-found";
   }
 

@@ -127,8 +127,8 @@ export interface DedupResult {
   pairs: DedupPair[];
 }
 
-export function runDeduplication(): DedupResult {
-  const unprocessed = getUnprocessedNonDuplicateEvents();
+export async function runDeduplication(): Promise<DedupResult> {
+  const unprocessed = await getUnprocessedNonDuplicateEvents();
   if (unprocessed.length === 0) return { marked: 0, pairs: [] };
 
   // Compute date range from unprocessed events
@@ -137,7 +137,7 @@ export function runDeduplication(): DedupResult {
   const maxDate = dates.reduce((a, b) => (a > b ? a : b));
 
   // Fetch all non-duplicate events in the date window (includes processed ones)
-  const targets = getPotentialDuplicateTargets(minDate, maxDate);
+  const targets = await getPotentialDuplicateTargets(minDate, maxDate);
 
   const markedIds = new Set<string>();
   const pairs: DedupPair[] = [];
@@ -149,7 +149,7 @@ export function runDeduplication(): DedupResult {
     for (const target of processed) {
       if (target.id === event.id) continue;
       if (eventsAreDuplicates(event, target)) {
-        markAsDuplicate(event.id, target.id);
+        await markAsDuplicate(event.id, target.id);
         markedIds.add(event.id);
         pairs.push({
           duplicateId: event.id,
@@ -172,7 +172,7 @@ export function runDeduplication(): DedupResult {
       if (markedIds.has(remaining[j].id)) continue;
       if (eventsAreDuplicates(remaining[i], remaining[j])) {
         const { canonical, duplicate } = chooseCanonical(remaining[i], remaining[j]);
-        markAsDuplicate(duplicate.id, canonical.id);
+        await markAsDuplicate(duplicate.id, canonical.id);
         markedIds.add(duplicate.id);
         pairs.push({
           duplicateId: duplicate.id,

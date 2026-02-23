@@ -9,8 +9,8 @@ function unauthorized() {
 export async function GET(request: NextRequest) {
   if (!isAdminAuthenticated(request)) return unauthorized();
 
-  initializeDb();
-  const events = getAllEvents();
+  await initializeDb();
+  const events = await getAllEvents();
 
   const mapped = events.map((e) => ({
     id: e.id,
@@ -54,10 +54,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    initializeDb();
+    await initializeDb();
 
     try {
-      insertEvent({
+      await insertEvent({
         id: crypto.randomUUID(),
         source: "manual",
         source_url: sourceUrl,
@@ -106,8 +106,8 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    initializeDb();
-    const updated = updateEvent(id, data);
+    await initializeDb();
+    const updated = await updateEvent(id, data);
 
     if (!updated) {
       return NextResponse.json(
