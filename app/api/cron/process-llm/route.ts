@@ -1,25 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processUnfilteredEvents } from "../../../../lib/llm";
+import { verifyCronAuth } from "../../../../lib/cron-auth";
 
 export const maxDuration = 120;
 
-export async function POST(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    return NextResponse.json(
-      { success: false, message: "CRON_SECRET not configured" },
-      { status: 500 }
-    );
-  }
-
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json(
-      { success: false, message: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
+async function handleProcessLlm() {
   try {
     const result = await processUnfilteredEvents(10);
     return NextResponse.json({ success: true, ...result });
@@ -31,4 +16,16 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
+  return handleProcessLlm();
+}
+
+export async function POST(request: NextRequest) {
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
+  return handleProcessLlm();
 }

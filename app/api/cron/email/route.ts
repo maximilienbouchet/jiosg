@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendDigestEmail } from "../../../../lib/email";
+import { verifyCronAuth } from "../../../../lib/cron-auth";
 
-export async function POST(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    return NextResponse.json(
-      { success: false, message: "CRON_SECRET not configured" },
-      { status: 500 }
-    );
-  }
-
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json(
-      { success: false, message: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
+async function handleEmail() {
   try {
     const result = await sendDigestEmail();
     return NextResponse.json({ success: true, ...result });
@@ -27,4 +12,16 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
+  return handleEmail();
+}
+
+export async function POST(request: NextRequest) {
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
+  return handleEmail();
 }

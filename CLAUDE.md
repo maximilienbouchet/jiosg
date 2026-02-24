@@ -25,6 +25,7 @@ See @SPEC.md for full product requirements, data model, LLM prompts, and build p
 - `npm run lint` — ESLint check
 - `npx tsx scripts/seed.ts` — Seed database with test events
 - `npx tsx scripts/scrape.ts` — Run all scrapers manually
+- `npx tsx scripts/send-test-digest.ts <email>` — Send a test digest email with real DB events
 
 ## Code Style
 

@@ -56,7 +56,28 @@
       "Bash(curl -s -L -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" \"https://www.eventbrite.sg/d/singapore--singapore/events--this-week/?page=99\" 2>/dev/null | python3 -c \"\nimport sys, json\n\nhtml = sys.stdin.read\\(\\)\nmarker = 'window.__SERVER_DATA__ = '\nidx = html.find\\(marker\\)\nif idx == -1:\n    print\\('No __SERVER_DATA__'\\)\n    sys.exit\\(0\\)\nstart = idx + len\\(marker\\)\ndepth = 0\nend = start\nfor i in range\\(start, len\\(html\\)\\):\n    if html[i] == '{':\n        depth += 1\n    elif html[i] == '}':\n        depth -= 1\n        if depth == 0:\n            end = i + 1\n            break\n\ndata = json.loads\\(html[start:end]\\)\nsd = data.get\\('search_data', {}\\)\nev_data = sd.get\\('events', {}\\)\nresults = ev_data.get\\('results', []\\)\nprint\\(f'Page 99 results count: {len\\(results\\)}'\\)\n\" 2>&1)",
       "mcp__playwright__browser_network_requests",
       "WebFetch(domain:www.sportplus.sg)",
-      "Bash(sleep 5:*)"
+      "Bash(sleep 5:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(source:*)",
+      "Bash(set -a && source /Users/maximilienbouchet/Work/projects/sg-event-curation/.env.local && set +a && npx tsx /Users/maximilienbouchet/Work/projects/sg-event-curation/scripts/seed.ts 2>&1)",
+      "Bash(set -a && source /Users/maximilienbouchet/Work/projects/sg-event-curation/.env.local && set +a && npx tsx -e \"\nconst { createClient } = require\\('@libsql/client'\\);\nconst db = createClient\\({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN }\\);\ndb.execute\\('DELETE FROM events'\\).then\\(r => console.log\\('Deleted', r.rowsAffected, 'events'\\)\\);\n\" 2>&1)",
+      "Bash(kill 54338:*)",
+      "Bash(lsof:*)",
+      "Bash(set -a && source .env.local && set +a && npx tsx scripts/reprocess-blurbs.ts 2>&1)",
+      "Bash(git push:*)",
+      "Bash(set:*)",
+      "Bash(cd ~/Downloads && swift /Users/maximilienbouchet/Work/projects/sg-event-curation/scripts/transcribe.swift \"WhatsApp Audio 2026-02-23 at 20.59.48.opus\" \"WhatsApp Audio 2026-02-23 at 21.00.34.opus\" \"WhatsApp Audio 2026-02-23 at 21.01.20.opus\" \"WhatsApp Audio 2026-02-23 at 21.01.52.opus\" \"WhatsApp Audio 2026-02-23 at 21.01.58.opus\" \"WhatsApp Audio 2026-02-23 at 21.03.01.opus\" \"WhatsApp Audio 2026-02-23 at 21.03.52.opus\" \"WhatsApp Audio 2026-02-23 at 21.04.11.opus\" \"WhatsApp Audio 2026-02-23 at 21.05.12.opus\" \"WhatsApp Audio 2026-02-23 at 21.06.47.opus\" 2>&1)",
+      "mcp__playwright__browser_tabs",
+      "mcp__playwright__browser_snapshot",
+      "WebFetch(domain:www.yourtessera.com)",
+      "mcp__playwright__browser_run_code",
+      "WebFetch(domain:api.yourtessera.com)",
+      "WebFetch(domain:peatix.com)",
+      "Bash(python3:*)",
+      "Bash(# Try the API with different parameters - the earlier WebFetch found api.yourtessera.com/mp/events/ # Let''s try different query patterns curl -s -w \"\"\\\\n%{http_code}\"\" \"\"https://api.yourtessera.com/mp/events/?country=SG&limit=20\"\" -H \"\"User-Agent: Mozilla/5.0\"\" -H \"\"Accept: application/json\"\")",
+      "Bash(echo === Chunk $chunk ===:*)",
+      "Bash(ls -la /private/tmp/claude-501/-Users-maximilienbouchet-Work-projects-sg-event-curation/tasks/b62e84e.output 2>/dev/null && cat /private/tmp/claude-501/-Users-maximilienbouchet-Work-projects-sg-event-curation/tasks/b62e84e.output 2>/dev/null || echo \"File not found, checking running jobs...\" && jobs -l 2>/dev/null)"
     ]
   }
 }

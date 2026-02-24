@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAllScrapers } from "../../../../lib/scrapers";
 import { initializeDb, insertScraperRun } from "../../../../lib/db";
 import { sendScraperAlertEmail } from "../../../../lib/email";
+import { processUnfilteredEvents } from "../../../../lib/llm";
 import { verifyCronAuth } from "../../../../lib/cron-auth";
 
 export const maxDuration = 300;
 
 const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera"];
 
-async function handleScrape() {
+export async function GET(request: NextRequest) {
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
+
+  // Phase 1: Scrape
   const { total, bySource, errors } = await runAllScrapers();
 
   await initializeDb();
@@ -34,29 +39,53 @@ async function handleScrape() {
     });
   }
 
+  // Phase 2: LLM processing — loop until backlog is cleared
+  let totalProcessed = 0;
+  let totalIncluded = 0;
+  let totalExcluded = 0;
+  let totalLlmErrors = 0;
+  let totalDeduplicated = 0;
+  let llmBatches = 0;
+
+  try {
+    let remaining = Infinity;
+    while (remaining > 0) {
+      const result = await processUnfilteredEvents(20);
+      totalProcessed += result.processed;
+      totalIncluded += result.included;
+      totalExcluded += result.excluded;
+      totalLlmErrors += result.errors;
+      totalDeduplicated += result.deduplicated;
+      remaining = result.remaining;
+      llmBatches++;
+
+      if (result.processed === 0) break;
+    }
+  } catch (error) {
+    console.error("[scrape-and-process] LLM processing error:", error);
+  }
+
   const hasErrors = Object.keys(errors).length > 0;
-  const message = hasErrors
-    ? `Scraped ${total} new events with ${Object.keys(errors).length} error(s)`
-    : `Scraped ${total} new events`;
 
   return NextResponse.json({
     success: !hasErrors,
-    total,
-    bySource,
-    errors,
-    message,
+    scrape: {
+      total,
+      bySource,
+      errors,
+    },
+    llm: {
+      processed: totalProcessed,
+      included: totalIncluded,
+      excluded: totalExcluded,
+      errors: totalLlmErrors,
+      deduplicated: totalDeduplicated,
+      batches: llmBatches,
+    },
     alert,
   });
 }
 
-export async function GET(request: NextRequest) {
-  const authError = verifyCronAuth(request);
-  if (authError) return authError;
-  return handleScrape();
-}
-
 export async function POST(request: NextRequest) {
-  const authError = verifyCronAuth(request);
-  if (authError) return authError;
-  return handleScrape();
+  return GET(request);
 }
