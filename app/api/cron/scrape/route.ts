@@ -3,7 +3,9 @@ import { runAllScrapers } from "../../../../lib/scrapers";
 import { initializeDb, insertScraperRun } from "../../../../lib/db";
 import { sendScraperAlertEmail } from "../../../../lib/email";
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus"];
+export const maxDuration = 300;
+
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera"];
 
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;

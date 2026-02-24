@@ -81,6 +81,63 @@ export async function initializeDb(): Promise<void> {
     await db.execute("ALTER TABLE events ADD COLUMN enriched_description TEXT");
   }
 
+  // Migrate CHECK constraint to allow new sources (peatix, fever, tessera).
+  // SQLite can't ALTER a CHECK constraint, so we recreate the table.
+  // This is idempotent — we check if the constraint already allows the new sources.
+  try {
+    await db.execute({ sql: "INSERT INTO events (id, source, source_url, raw_title, venue, event_date_start) VALUES ('__check_test__', 'peatix', '__check_test__', '__check_test__', '__check_test__', '2000-01-01')", args: [] });
+    // If insert succeeded, constraint already allows new sources — clean up
+    await db.execute("DELETE FROM events WHERE id = '__check_test__'");
+  } catch {
+    // CHECK constraint rejected 'peatix' — need to recreate table
+    console.log("[db] Migrating events table to allow new sources...");
+    await db.batch([
+      { sql: "ALTER TABLE events RENAME TO events_old", args: [] },
+      { sql: `CREATE TABLE events (
+        id TEXT PRIMARY KEY,
+        source TEXT NOT NULL CHECK (source IN ('eventbrite', 'thekallang', 'esplanade', 'sportplus', 'manual', 'peatix', 'fever', 'tessera')),
+        source_url TEXT NOT NULL,
+        raw_title TEXT NOT NULL,
+        raw_description TEXT,
+        venue TEXT NOT NULL,
+        event_date_start TEXT NOT NULL,
+        event_date_end TEXT,
+        scraped_at TEXT NOT NULL DEFAULT (datetime('now')),
+        llm_included INTEGER,
+        llm_filter_reason TEXT,
+        blurb TEXT,
+        tags TEXT,
+        is_manually_added INTEGER NOT NULL DEFAULT 0,
+        is_published INTEGER NOT NULL DEFAULT 0,
+        is_heads_up INTEGER NOT NULL DEFAULT 0,
+        is_duplicate INTEGER NOT NULL DEFAULT 0,
+        duplicate_of TEXT,
+        enriched_description TEXT,
+        llm_score INTEGER,
+        thumbs_up INTEGER NOT NULL DEFAULT 0,
+        thumbs_down INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`, args: [] },
+      { sql: `INSERT INTO events (id, source, source_url, raw_title, raw_description, venue,
+        event_date_start, event_date_end, scraped_at, llm_included, llm_filter_reason, blurb, tags,
+        is_manually_added, is_published, is_heads_up, is_duplicate, duplicate_of, enriched_description,
+        llm_score, thumbs_up, thumbs_down, created_at, updated_at)
+        SELECT id, source, source_url, raw_title, raw_description, venue,
+        event_date_start, event_date_end, scraped_at, llm_included, llm_filter_reason, blurb, tags,
+        is_manually_added, is_published, is_heads_up, is_duplicate, duplicate_of, enriched_description,
+        llm_score, thumbs_up, thumbs_down, created_at, updated_at
+        FROM events_old`, args: [] },
+      { sql: "DROP TABLE events_old", args: [] },
+      { sql: "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_source_url ON events(source_url)", args: [] },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_events_date_start ON events(event_date_start)", args: [] },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_events_published ON events(is_published)", args: [] },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_events_published_date ON events(is_published, event_date_start)", args: [] },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_events_heads_up ON events(is_heads_up, is_published, event_date_start)", args: [] },
+    ]);
+    console.log("[db] Migration complete.");
+  }
+
   dbInitialized = true;
 }
 
@@ -101,12 +158,11 @@ export async function getPublishedEvents(startDate: string, endDate: string): Pr
   return result.rows as unknown as EventRow[];
 }
 
-export async function incrementThumbs(eventId: string, direction: "up" | "down"): Promise<boolean> {
+export async function adjustThumbs(eventId: string, upDelta: number, downDelta: number): Promise<boolean> {
   const db = getClient();
-  const column = direction === "up" ? "thumbs_up" : "thumbs_down";
   const result = await db.execute({
-    sql: `UPDATE events SET ${column} = ${column} + 1, updated_at = datetime('now') WHERE id = ?`,
-    args: [eventId],
+    sql: `UPDATE events SET thumbs_up = MAX(thumbs_up + ?, 0), thumbs_down = MAX(thumbs_down + ?, 0), updated_at = datetime('now') WHERE id = ?`,
+    args: [upDelta, downDelta, eventId],
   });
   return (result.rowsAffected ?? 0) > 0;
 }
@@ -154,6 +210,15 @@ export async function insertEvent(event: {
   });
 }
 
+export async function checkEventExists(sourceUrl: string): Promise<boolean> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: "SELECT 1 FROM events WHERE source_url = ? LIMIT 1",
+    args: [sourceUrl],
+  });
+  return result.rows.length > 0;
+}
+
 export async function upsertEvent(event: {
   source: string;
   source_url: string;
@@ -186,7 +251,7 @@ export async function upsertEvent(event: {
       )
       ON CONFLICT(source_url) DO UPDATE SET
         raw_title = excluded.raw_title,
-        raw_description = excluded.raw_description,
+        raw_description = COALESCE(excluded.raw_description, events.raw_description),
         venue = excluded.venue,
         event_date_start = excluded.event_date_start,
         event_date_end = excluded.event_date_end,

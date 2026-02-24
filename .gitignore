@@ -45,6 +45,7 @@ db/*.db-wal
 
 # qa screenshots
 test-screenshots/
+*.png
 
 # vercel
 .vercel

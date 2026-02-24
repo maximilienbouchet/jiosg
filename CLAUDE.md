@@ -81,3 +81,11 @@ When entering plan mode, always follow a maker-checker process:
 - Event blurbs are ONE sentence, max 120 characters
 - Fonts: Space Grotesk (display) + Inter (body) from Google Fonts
 - Colors: bg #0A0A0F, text #E8E8ED, accent #F5A623, links #6B8AFF
+
+## Feedback Workflow
+
+Tester feedback flows through three slash commands and the `FEEDBACK.md` tracker:
+
+1. `/add-feedback <raw text>` — Parse messy feedback into structured Inbox items
+2. `/triage` — Interactively classify Inbox items into P1/P2/P3/Won't do
+3. `/fix` — Pick the highest-priority item, plan, implement, and commit

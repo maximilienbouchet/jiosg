@@ -2,6 +2,9 @@ import { scrapeTheKallang } from "./thekallang";
 import { scrapeEventbrite } from "./eventbrite";
 import { scrapeEsplanade } from "./esplanade";
 import { scrapeSportPlus } from "./sportplus";
+import { scrapePeatix } from "./peatix";
+import { scrapeFever } from "./fever";
+import { scrapeTessera } from "./tessera";
 
 export async function runAllScrapers(): Promise<{
   total: number;
@@ -17,6 +20,9 @@ export async function runAllScrapers(): Promise<{
     { name: "eventbrite", fn: scrapeEventbrite },
     { name: "esplanade", fn: scrapeEsplanade },
     { name: "sportplus", fn: scrapeSportPlus },
+    { name: "peatix", fn: scrapePeatix },
+    { name: "fever", fn: scrapeFever },
+    { name: "tessera", fn: scrapeTessera },
   ];
 
   for (const scraper of scrapers) {

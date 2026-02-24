@@ -29,6 +29,9 @@ const SOURCE_BADGES: Record<string, string> = {
   thekallang: "bg-blue-100 text-blue-700",
   esplanade: "bg-green-100 text-green-700",
   sportplus: "bg-red-100 text-red-700",
+  peatix: "bg-yellow-100 text-yellow-700",
+  fever: "bg-pink-100 text-pink-700",
+  tessera: "bg-cyan-100 text-cyan-700",
 };
 
 export function EventList() {

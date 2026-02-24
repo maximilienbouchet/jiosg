@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { WeekNav } from "./WeekNav";
 import { TagFilter } from "./TagFilter";
 import { EventCard } from "./EventCard";
 import { EmptyState } from "./EmptyState";
 import { HeadsUpSection } from "./HeadsUpSection";
-import { addDays, formatDateHeader } from "../lib/dates";
+import { addDays, getMonday, getSunday, formatDateHeader } from "../lib/dates";
 
 interface EventData {
   id: string;
@@ -21,14 +21,23 @@ interface EventData {
 }
 
 export function EventsView() {
-  const [startDate, setStartDate] = useState(() => {
+  const todaySgt = useMemo(() => {
     return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
-  });
+  }, []);
+
+  const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState<EventData[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const endDate = addDays(startDate, 6);
+  const { startDate, endDate } = useMemo(() => {
+    const monday = getMonday(todaySgt);
+    if (weekOffset === 0) {
+      return { startDate: todaySgt, endDate: getSunday(todaySgt) };
+    }
+    const s = addDays(monday, weekOffset * 7);
+    return { startDate: s, endDate: addDays(s, 6) };
+  }, [todaySgt, weekOffset]);
 
   useEffect(() => {
     setLoading(true);
@@ -44,19 +53,14 @@ export function EventsView() {
       });
   }, [startDate, endDate]);
 
-  const onPrevWeek = useCallback(() => {
-    setStartDate((prev) => addDays(prev, -7));
-  }, []);
+  const onPrevWeek = useCallback(() => setWeekOffset((prev) => prev - 1), []);
+  const onNextWeek = useCallback(() => setWeekOffset((prev) => prev + 1), []);
 
-  const onNextWeek = useCallback(() => {
-    setStartDate((prev) => addDays(prev, 7));
-  }, []);
-
-  const handleVote = useCallback((eventId: string, vote: "up" | "down") => {
+  const handleVote = useCallback((eventId: string, vote: "up" | "down", previousVote: "up" | "down" | null) => {
     fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId, vote }),
+      body: JSON.stringify({ eventId, vote, previousVote }),
     });
   }, []);
 
@@ -86,10 +90,11 @@ export function EventsView() {
 
   // WeekNav expects Date objects
   const startDateObj = new Date(startDate + "T00:00:00");
+  const endDateObj = new Date(endDate + "T00:00:00");
 
   return (
     <div>
-      <WeekNav startDate={startDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
+      <WeekNav startDate={startDateObj} endDate={endDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
       <TagFilter selectedTags={selectedTags} onToggleTag={handleToggleTag} onClearTags={handleClearTags} />
       <HeadsUpSection />
 

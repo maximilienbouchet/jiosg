@@ -15,9 +15,12 @@ const SOURCE_LABELS: Record<string, string> = {
   eventbrite: "Eventbrite",
   esplanade: "Esplanade",
   sportplus: "SportPlus",
+  peatix: "Peatix",
+  fever: "Fever",
+  tessera: "Tessera",
 };
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus"];
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera"];
 
 function formatTimestamp(iso: string): string {
   const date = new Date(iso + "Z");

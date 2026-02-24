@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedEvents, incrementThumbs, initializeDb } from "../../../lib/db";
+import { getPublishedEvents, adjustThumbs, initializeDb } from "../../../lib/db";
 
 // GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD
 export async function GET(request: NextRequest) {
@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ events });
 }
 
-// POST /api/events (thumbs up/down)
+// POST /api/events (thumbs up/down — toggleable)
 export async function POST(request: NextRequest) {
-  let body: { eventId?: string; vote?: string };
+  let body: { eventId?: string; vote?: string; previousVote?: string | null };
   try {
     body = await request.json();
   } catch {
@@ -42,7 +42,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid eventId or vote" }, { status: 400 });
   }
 
+  const previousVote = body.previousVote;
+  if (previousVote !== undefined && previousVote !== null && previousVote !== "up" && previousVote !== "down") {
+    return NextResponse.json({ error: "Invalid previousVote" }, { status: 400 });
+  }
+
+  let upDelta = 0;
+  let downDelta = 0;
+
+  if (previousVote === vote) {
+    // Undo: clicking the same direction again
+    if (vote === "up") upDelta = -1;
+    else downDelta = -1;
+  } else if (previousVote === null || previousVote === undefined) {
+    // New vote
+    if (vote === "up") upDelta = 1;
+    else downDelta = 1;
+  } else {
+    // Switch direction
+    if (vote === "up") { upDelta = 1; downDelta = -1; }
+    else { upDelta = -1; downDelta = 1; }
+  }
+
   await initializeDb();
-  const success = await incrementThumbs(eventId, vote);
+  const success = await adjustThumbs(eventId, upDelta, downDelta);
   return NextResponse.json({ success });
 }

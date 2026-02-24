@@ -20,11 +20,13 @@ export interface BlurbResult {
   score: number;
 }
 
-const FILTER_SYSTEM_PROMPT = `You are a selective event curator for a website that recommends quality cultural and lifestyle events in Singapore to people aged 20-40.
+const FILTER_SYSTEM_PROMPT = `You are a strict event curator for a website that recommends quality cultural and lifestyle events in Singapore to people aged 20-40.
 
-Your job: decide if an event should be INCLUDED or EXCLUDED. We show ~10-15 events per week — quality matters, but we'd rather show a solid lineup than an empty page.
+Your job: decide if an event should be INCLUDED or EXCLUDED. We show ~10 events per week — if it's a quiet week, show fewer; never pad.
 
-Apply "the Saturday test" — would a culturally curious couple in their 20s-30s genuinely consider doing this on a weekend? The key question: can you identify WHAT specifically makes this event worth attending (a named performer, a specific exhibition, a notable race, a unique experience)? If the description is too vague to answer that, EXCLUDE.
+Apply "the wow test" — would this genuinely make someone say "oh, I want to go to that"? The key question: can you identify WHAT specifically makes this event worth attending (a named performer, a specific exhibition, a notable race, a unique experience)? If the description is too vague to answer that, EXCLUDE.
+
+When in doubt, EXCLUDE. We'd rather miss a decent event than show a mediocre one.
 
 INCLUDE events that are:
 - Performing arts: concerts, ballet, orchestra, opera, theatre, dance, comedy — featuring named performers, specific productions, or limited runs
@@ -48,8 +50,6 @@ EXCLUDE events that are:
 - Religious services (cultural religious festivals ARE ok)
 - Routine recurring programming: weekly jazz nights, open mics, regular venue filler with no specific draw
 - Descriptions too vague to identify what makes the event worth attending
-
-If the description is brief but the event type and venue are clearly identifiable, lean toward INCLUDE — short descriptions don't necessarily mean low-quality events.
 
 Respond with JSON only:
 {"include": true/false, "reason": "brief explanation"}`;
@@ -80,12 +80,12 @@ Do NOT flag routine events as heads_up, even good ones.
 Rate this event's interest from 1-10:
 1-3: Routine, could happen any week — skip
 4-5: Decent but fairly generic
-6: Solid event worth recommending — clear draw, specific appeal
-7: Very good, would actively recommend to friends
-8-9: Excellent — would rearrange plans to attend
+6: Good event, clear draw — but not exceptional
+7: Would text a friend about it unprompted
+8-9: Would rearrange plans to attend
 10: Once-in-a-lifetime, unmissable
 
-Be honest but fair. Most events that passed our filter should be a 5-6. Give 7+ to events with genuinely notable performers, landmark exhibitions, or truly unique experiences.
+Most events that passed our filter should land at 5-6. Reserve 7+ for events with genuinely notable performers, landmark exhibitions, or truly unique experiences. A 7 means you'd text a friend about it unprompted.
 
 Respond with JSON only:
 {"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}`;
@@ -190,7 +190,7 @@ function formatDateForLlm(isoDate: string): string {
   });
 }
 
-const SCORE_THRESHOLD = 6;
+const SCORE_THRESHOLD = 7;
 const CONCURRENCY = 5;
 const BATCH_DELAY_MS = 1000;
 const THIN_DESCRIPTION_THRESHOLD = 100;

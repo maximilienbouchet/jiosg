@@ -2,14 +2,12 @@
 
 interface WeekNavProps {
   startDate: Date;
+  endDate: Date;
   onPrevWeek: () => void;
   onNextWeek: () => void;
 }
 
-export function WeekNav({ startDate, onPrevWeek, onNextWeek }: WeekNavProps) {
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
-
+export function WeekNav({ startDate, endDate, onPrevWeek, onNextWeek }: WeekNavProps) {
   const format = (d: Date) =>
     d.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" }).toUpperCase();
 
