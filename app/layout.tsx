@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { LayoutEffects } from "../components/LayoutEffects";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({
         <LayoutEffects />
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
