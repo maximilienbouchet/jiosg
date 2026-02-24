@@ -180,6 +180,53 @@ export async function generateBlurbAndTags(
   }
 }
 
+export async function generateDigestIntro(
+  events: EventRow[]
+): Promise<{ intro: string; subject: string } | null> {
+  if (events.length === 0) return null;
+
+  const eventSummaries = events
+    .slice(0, 15)
+    .map((e) => {
+      const tags: string[] = e.tags ? JSON.parse(e.tags) : [];
+      return `- ${e.raw_title} at ${e.venue} (${tags.join(", ")})`;
+    })
+    .join("\n");
+
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 256,
+      system: `You write weekly email intros for "jio", a curated events newsletter in Singapore for 20-40 year olds. Casual, warm, personality-driven — like texting a friend about what's on this weekend.
+
+Rules:
+- Write a 2-3 sentence intro paragraph highlighting the weekend's standouts. Be specific — name one or two events. No generic filler.
+- Also write a short email subject line (max 50 chars). It should have personality and mention a specific event name or draw. No emojis. Lowercase is fine.
+- The subject should make someone want to open the email.
+
+Respond with JSON only:
+{"intro": "your 2-3 sentences", "subject": "your subject line"}`,
+      messages: [
+        {
+          role: "user",
+          content: `This weekend's events:\n${eventSummaries}`,
+        },
+      ],
+    });
+
+    const raw =
+      response.content[0].type === "text" ? response.content[0].text : "";
+    const parsed = JSON.parse(extractJson(raw));
+    return {
+      intro: String(parsed.intro),
+      subject: String(parsed.subject).slice(0, 50),
+    };
+  } catch (error) {
+    console.error("generateDigestIntro error:", error);
+    return null;
+  }
+}
+
 function formatDateForLlm(isoDate: string): string {
   const d = new Date(isoDate);
   return d.toLocaleDateString("en-SG", {

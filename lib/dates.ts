@@ -35,6 +35,14 @@ export function formatDateHeader(dateStr: string): string {
  * Cross-month: "28 FEB — 3 MAR"
  * Returns null if no meaningful range (end is null, or same day as start).
  */
+/**
+ * Returns the Thu → Sun digest window for a given SGT date.
+ * Used by production send, test script, and preview script.
+ */
+export function getDigestWindow(todaySgt: string): { start: string; end: string } {
+  return { start: todaySgt, end: addDays(todaySgt, 3) };
+}
+
 export function formatDateRange(startStr: string, endStr: string | null): string | null {
   if (!endStr) return null;
   const startDate = startStr.split("T")[0];

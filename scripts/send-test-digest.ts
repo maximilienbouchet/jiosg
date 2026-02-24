@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { initializeDb, getPublishedEvents, getHeadsUpEvents } from "../lib/db";
 import { buildDigestHtml } from "../lib/email";
+import { getDigestWindow } from "../lib/dates";
+import { generateDigestIntro } from "../lib/llm";
 
 async function main() {
   const to = process.argv[2];
@@ -20,22 +22,40 @@ async function main() {
   await initializeDb();
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
-  const endDate = new Date(new Date(today).getTime() + 7 * 86400000).toISOString().split("T")[0];
+  const { start: startDate, end: endDate } = getDigestWindow(today);
 
-  const events = await getPublishedEvents(today, endDate);
+  const events = await getPublishedEvents(startDate, endDate);
   const headsUpEvents = await getHeadsUpEvents(today);
 
   if (events.length === 0 && headsUpEvents.length === 0) {
-    console.log("No published events found for the next 7 days. Email would be empty.");
+    console.log("No published events found for the digest window. Email would be empty.");
     process.exit(0);
   }
 
-  console.log(`Found ${events.length} events + ${headsUpEvents.length} heads-up events`);
+  console.log(`Found ${events.length} events (${startDate} → ${endDate}) + ${headsUpEvents.length} heads-up events`);
 
-  const html = buildDigestHtml(events, headsUpEvents, siteUrl, "test-token", today);
+  // Generate AI intro + subject
+  const digestIntro = await generateDigestIntro(events);
+  const subject = digestIntro?.subject
+    ? `[TEST] jio — ${digestIntro.subject}`
+    : "[TEST] jio — your weekend sorted";
+  const introHtml = digestIntro?.intro || undefined;
+
+  if (digestIntro) {
+    console.log(`AI subject: ${digestIntro.subject}`);
+    console.log(`AI intro: ${digestIntro.intro}`);
+  } else {
+    console.log("AI intro generation failed, using fallback subject");
+  }
+
+  const html = buildDigestHtml(events, headsUpEvents, siteUrl, "test-token", {
+    weekStart: startDate,
+    startDate,
+    endDate,
+    introHtml,
+  });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const subject = `[TEST] jio digest — ${today}`;
 
   const { data, error } = await resend.emails.send({
     from,

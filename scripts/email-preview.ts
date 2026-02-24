@@ -53,7 +53,11 @@ const mockHeadsUp: EventRow[] = [
   },
 ];
 
-const html = buildDigestHtml(mockEvents, mockHeadsUp, "https://jio.sg", "test-token-123");
+const html = buildDigestHtml(mockEvents, mockHeadsUp, "https://jio.sg", "test-token-123", {
+  startDate: "2026-02-23",
+  endDate: "2026-02-26",
+  introHtml: "Big weekend ahead — Singapore Smash brings world-class table tennis to the Kallang, and a natural wine fair is taking over Tiong Bahru. Don't sleep on the late-night jazz at Esplanade either.",
+});
 const outDir = path.join(process.cwd(), "test-screenshots");
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 const outPath = path.join(outDir, "email-preview.html");

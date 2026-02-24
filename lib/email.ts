@@ -6,7 +6,8 @@ import {
   getActiveSubscribers,
   EventRow,
 } from "./db";
-import { formatDateRange } from "./dates";
+import { formatDateRange, getDigestWindow } from "./dates";
+import { generateDigestIntro } from "./llm";
 
 export async function sendScraperAlertEmail(alert: {
   zeroSources: string[];
@@ -150,9 +151,14 @@ export function buildDigestHtml(
   headsUpEvents: EventRow[],
   siteUrl: string,
   unsubscribeToken: string,
-  weekStart?: string
+  options?: {
+    weekStart?: string;
+    startDate?: string;
+    endDate?: string;
+    introHtml?: string;
+  }
 ): string {
-  const grouped = groupEventsByDate(events, weekStart);
+  const grouped = groupEventsByDate(events, options?.weekStart);
 
   let eventsHtml = "";
   let isFirst = true;
@@ -182,9 +188,13 @@ export function buildDigestHtml(
     }
   }
 
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
-  const endDate = new Date(new Date(today).getTime() + 7 * 86400000).toISOString().split("T")[0];
-  const dateRange = `${formatDateShort(today)} \u2014 ${formatDateShort(endDate)}`;
+  const startDate = options?.startDate || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
+  const endDate = options?.endDate || new Date(new Date(startDate).getTime() + 7 * 86400000).toISOString().split("T")[0];
+  const dateRange = `${formatDateShort(startDate)} \u2014 ${formatDateShort(endDate)}`;
+
+  const introBlock = options?.introHtml
+    ? `<tr><td style="padding:8px 24px 12px 24px;font-family:Inter,Arial,sans-serif;font-size:14px;color:#E8E8ED;line-height:1.5;">${options.introHtml}</td></tr>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -197,6 +207,7 @@ export function buildDigestHtml(
     <span style="font-family:'Space Grotesk',Arial,sans-serif;font-size:28px;font-weight:bold;color:#F5A623;">jio</span><br/>
     <span style="font-family:Inter,Arial,sans-serif;font-size:13px;color:#6B6B76;">${dateRange}</span>
   </td></tr>
+  ${introBlock}
   <tr><td style="padding:8px 24px 0 24px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
       ${eventsHtml}
@@ -232,9 +243,9 @@ export async function sendDigestEmail(): Promise<{
   await initializeDb();
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
-  const endDate = new Date(new Date(today).getTime() + 7 * 86400000).toISOString().split("T")[0];
+  const { start: startDate, end: endDate } = getDigestWindow(today);
 
-  const events = await getPublishedEvents(today, endDate);
+  const events = await getPublishedEvents(startDate, endDate);
   const headsUpEvents = await getHeadsUpEvents(today);
 
   if (events.length === 0 && headsUpEvents.length === 0) {
@@ -246,16 +257,27 @@ export async function sendDigestEmail(): Promise<{
     return { sent: 0, failed: 0, skipped: "No active subscribers", errors: [] };
   }
 
+  // Generate AI intro + subject once before the subscriber loop
+  const digestIntro = await generateDigestIntro(events);
+  const subject = digestIntro?.subject
+    ? `jio — ${digestIntro.subject}`
+    : "jio — your weekend sorted";
+  const introHtml = digestIntro?.intro || undefined;
+
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.FROM_EMAIL || "jio <onboarding@resend.dev>";
-  const subject = `jio \u2014 ${formatDateShort(today)} to ${formatDateShort(endDate)}`;
 
   let sent = 0;
   let failed = 0;
   const errors: string[] = [];
 
   for (const subscriber of subscribers) {
-    const html = buildDigestHtml(events, headsUpEvents, siteUrl, subscriber.unsubscribe_token, today);
+    const html = buildDigestHtml(events, headsUpEvents, siteUrl, subscriber.unsubscribe_token, {
+      weekStart: startDate,
+      startDate,
+      endDate,
+      introHtml,
+    });
     try {
       await resend.emails.send({
         from,
