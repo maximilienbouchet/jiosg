@@ -32,7 +32,7 @@ async function main() {
 
   console.log(`Found ${events.length} events + ${headsUpEvents.length} heads-up events`);
 
-  const html = buildDigestHtml(events, headsUpEvents, siteUrl, "test-token");
+  const html = buildDigestHtml(events, headsUpEvents, siteUrl, "test-token", today);
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = `[TEST] jio digest — ${today}`;

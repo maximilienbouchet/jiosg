@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "../lib/utils";
 import { TAG_COLORS } from "../lib/tags";
+import { formatDateRange } from "../lib/dates";
 
 interface EventCardProps {
   id: string;
@@ -11,6 +12,8 @@ interface EventCardProps {
   blurb: string;
   tags: string[];
   sourceUrl: string;
+  eventDateStart?: string;
+  eventDateEnd?: string | null;
   thumbsUp: number;
   thumbsDown: number;
   onVote: (eventId: string, vote: "up" | "down", previousVote: "up" | "down" | null) => void;
@@ -23,7 +26,7 @@ function readStoredVote(id: string): "up" | "down" | null {
   return v === "up" || v === "down" ? v : null;
 }
 
-export function EventCard({ id, title, venue, blurb, tags, sourceUrl, thumbsUp, thumbsDown, onVote, entranceDelay }: EventCardProps) {
+export function EventCard({ id, title, venue, blurb, tags, sourceUrl, eventDateStart, eventDateEnd, thumbsUp, thumbsDown, onVote, entranceDelay }: EventCardProps) {
   const [voted, setVoted] = useState<"up" | "down" | null>(() => readStoredVote(id));
   const [localUp, setLocalUp] = useState(() => {
     const stored = readStoredVote(id);
@@ -84,6 +87,11 @@ export function EventCard({ id, title, venue, blurb, tags, sourceUrl, thumbsUp, 
           {title}
         </h3>
         <p className="text-sm text-[var(--color-muted)]">{venue}</p>
+        {eventDateStart && formatDateRange(eventDateStart, eventDateEnd ?? null) && (
+          <p className="text-sm text-[var(--color-muted)]">
+            {formatDateRange(eventDateStart, eventDateEnd ?? null)}
+          </p>
+        )}
         <p className="mt-2 text-sm">{blurb}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {tags.map((tag) => {

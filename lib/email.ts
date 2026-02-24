@@ -6,6 +6,7 @@ import {
   getActiveSubscribers,
   EventRow,
 } from "./db";
+import { formatDateRange } from "./dates";
 
 export async function sendScraperAlertEmail(alert: {
   zeroSources: string[];
@@ -100,10 +101,12 @@ function formatDateShort(dateStr: string): string {
   return `${dayNum} ${month}`;
 }
 
-function groupEventsByDate(events: EventRow[]): Map<string, EventRow[]> {
+function groupEventsByDate(events: EventRow[], weekStart?: string): Map<string, EventRow[]> {
   const groups = new Map<string, EventRow[]>();
   for (const event of events) {
-    const dateKey = event.event_date_start.split("T")[0];
+    const eventStart = event.event_date_start.split("T")[0];
+    // Multi-day events that started before the week get grouped under the week's first day
+    const dateKey = weekStart && eventStart < weekStart ? weekStart : eventStart;
     const existing = groups.get(dateKey) || [];
     existing.push(event);
     groups.set(dateKey, existing);
@@ -129,11 +132,15 @@ function renderEvent(event: EventRow, isHeadsUp: boolean): string {
     : `<span style="color:#E8E8ED;font-weight:bold;font-size:16px;font-family:'Space Grotesk',Arial,sans-serif;">${event.raw_title}</span>`;
 
   const leftBorder = isHeadsUp ? "border-left:3px solid #F5A623;padding-left:12px;" : "";
+  const dateRange = formatDateRange(event.event_date_start, event.event_date_end);
+  const dateRangeHtml = dateRange
+    ? `<span style="color:#6B6B76;font-size:13px;font-family:Inter,Arial,sans-serif;">${dateRange}</span><br/>`
+    : "";
 
   return `<tr><td style="padding:0 0 20px 0;${leftBorder}">
     ${titleHtml}<br/>
     <span style="color:#6B6B76;font-size:13px;font-family:Inter,Arial,sans-serif;">${venue}</span><br/>
-    <span style="color:#E8E8ED;font-size:14px;font-family:Inter,Arial,sans-serif;">${blurb}</span><br/>
+    ${dateRangeHtml}<span style="color:#E8E8ED;font-size:14px;font-family:Inter,Arial,sans-serif;">${blurb}</span><br/>
     <div style="margin-top:6px;">${tagHtml}</div>
   </td></tr>`;
 }
@@ -142,9 +149,10 @@ export function buildDigestHtml(
   events: EventRow[],
   headsUpEvents: EventRow[],
   siteUrl: string,
-  unsubscribeToken: string
+  unsubscribeToken: string,
+  weekStart?: string
 ): string {
-  const grouped = groupEventsByDate(events);
+  const grouped = groupEventsByDate(events, weekStart);
 
   let eventsHtml = "";
   let isFirst = true;
@@ -247,7 +255,7 @@ export async function sendDigestEmail(): Promise<{
   const errors: string[] = [];
 
   for (const subscriber of subscribers) {
-    const html = buildDigestHtml(events, headsUpEvents, siteUrl, subscriber.unsubscribe_token);
+    const html = buildDigestHtml(events, headsUpEvents, siteUrl, subscriber.unsubscribe_token, today);
     try {
       await resend.emails.send({
         from,

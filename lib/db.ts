@@ -143,17 +143,18 @@ export async function initializeDb(): Promise<void> {
 
 export async function getPublishedEvents(startDate: string, endDate: string): Promise<EventRow[]> {
   const db = getClient();
-  // Use range comparison on the raw TEXT column so the index is used
-  // startDate/endDate are YYYY-MM-DD, event_date_start is ISO datetime
+  // Catch events that overlap the [startDate, endDate] window:
+  //   - event starts before the window ends  AND
+  //   - event ends on/after the window starts (or is single-day and starts within the window)
   const result = await db.execute({
     sql: `
       SELECT * FROM events
       WHERE is_published = 1
-        AND event_date_start >= ?
         AND event_date_start < date(?, '+1 day')
+        AND (event_date_end >= ? OR (event_date_end IS NULL AND event_date_start >= ?))
       ORDER BY event_date_start ASC
     `,
-    args: [startDate, endDate],
+    args: [endDate, startDate, startDate],
   });
   return result.rows as unknown as EventRow[];
 }

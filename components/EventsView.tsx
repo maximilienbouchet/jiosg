@@ -16,6 +16,7 @@ interface EventData {
   tags: string[];
   sourceUrl: string;
   eventDateStart: string;
+  eventDateEnd: string | null;
   thumbsUp: number;
   thumbsDown: number;
 }
@@ -76,10 +77,12 @@ export function EventsView() {
       ? events.filter((e) => e.tags.some((t) => selectedTags.includes(t)))
       : events;
 
-  // Group by date
+  // Group by date — multi-day events that started before the visible week
+  // get grouped under the week's start date (Monday)
   const grouped: Record<string, EventData[]> = {};
   for (const event of filtered) {
-    const dateKey = event.eventDateStart.split("T")[0];
+    const eventStart = event.eventDateStart.split("T")[0];
+    const dateKey = eventStart < startDate ? startDate : eventStart;
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(event);
   }
@@ -121,6 +124,8 @@ export function EventsView() {
                         blurb={event.blurb}
                         tags={event.tags}
                         sourceUrl={event.sourceUrl}
+                        eventDateStart={event.eventDateStart}
+                        eventDateEnd={event.eventDateEnd}
                         thumbsUp={event.thumbsUp}
                         thumbsDown={event.thumbsDown}
                         onVote={handleVote}

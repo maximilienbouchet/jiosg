@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     tags: row.tags ? JSON.parse(row.tags) : [],
     sourceUrl: row.source_url,
     eventDateStart: row.event_date_start,
+    eventDateEnd: row.event_date_end,
     thumbsUp: row.thumbs_up,
     thumbsDown: row.thumbs_down,
   }));

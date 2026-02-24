@@ -28,3 +28,26 @@ export function formatDateHeader(dateStr: string): string {
     .toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" })
     .toUpperCase();
 }
+
+/**
+ * Format a compact date range string.
+ * Same month: "22 — 24 FEB"
+ * Cross-month: "28 FEB — 3 MAR"
+ * Returns null if no meaningful range (end is null, or same day as start).
+ */
+export function formatDateRange(startStr: string, endStr: string | null): string | null {
+  if (!endStr) return null;
+  const startDate = startStr.split("T")[0];
+  const endDate = endStr.split("T")[0];
+  if (startDate === endDate) return null;
+
+  const s = new Date(startDate + "T00:00:00");
+  const e = new Date(endDate + "T00:00:00");
+  const sMonth = s.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  const eMonth = e.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+
+  if (sMonth === eMonth) {
+    return `${s.getDate()} \u2014 ${e.getDate()} ${sMonth}`;
+  }
+  return `${s.getDate()} ${sMonth} \u2014 ${e.getDate()} ${eMonth}`;
+}
