@@ -6,7 +6,7 @@ import { TagFilter } from "./TagFilter";
 import { EventCard } from "./EventCard";
 import { EmptyState } from "./EmptyState";
 import { HeadsUpSection } from "./HeadsUpSection";
-import { addDays, getMonday, getSunday, formatDateHeader } from "../lib/dates";
+import { addDays, getMonday, formatDateHeader } from "../lib/dates";
 
 interface EventData {
   id: string;
@@ -32,9 +32,6 @@ export function EventsView() {
 
   const { startDate, endDate } = useMemo(() => {
     const monday = getMonday(todaySgt);
-    if (weekOffset === 0) {
-      return { startDate: todaySgt, endDate: getSunday(todaySgt) };
-    }
     const s = addDays(monday, weekOffset * 7);
     return { startDate: s, endDate: addDays(s, 6) };
   }, [todaySgt, weekOffset]);
