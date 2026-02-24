@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { LayoutEffects } from "../components/LayoutEffects";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className="antialiased">
         <LayoutEffects />
         {children}
+        <Analytics />
       </body>
     </html>
   );
