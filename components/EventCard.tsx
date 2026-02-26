@@ -1,7 +1,3 @@
-"use client";
-
-import { useState } from "react";
-import { cn } from "../lib/utils";
 import { TAG_COLORS } from "../lib/tags";
 import { formatDateRange } from "../lib/dates";
 
@@ -14,63 +10,11 @@ interface EventCardProps {
   sourceUrl: string;
   eventDateStart?: string;
   eventDateEnd?: string | null;
-  thumbsUp: number;
-  thumbsDown: number;
-  onVote: (eventId: string, vote: "up" | "down", previousVote: "up" | "down" | null) => void;
   entranceDelay?: number;
+  onTagClick?: (tag: string) => void;
 }
 
-function readStoredVote(id: string): "up" | "down" | null {
-  if (typeof window === "undefined") return null;
-  const v = localStorage.getItem(`jio-vote-${id}`);
-  return v === "up" || v === "down" ? v : null;
-}
-
-export function EventCard({ id, title, venue, blurb, tags, sourceUrl, eventDateStart, eventDateEnd, thumbsUp, thumbsDown, onVote, entranceDelay }: EventCardProps) {
-  const [voted, setVoted] = useState<"up" | "down" | null>(() => readStoredVote(id));
-  const [localUp, setLocalUp] = useState(() => {
-    const stored = readStoredVote(id);
-    // If user previously voted up but server count doesn't reflect it yet,
-    // we still show the server count as-is (optimistic was already applied on the original click)
-    return thumbsUp;
-  });
-  const [localDown, setLocalDown] = useState(() => thumbsDown);
-
-  const handleVote = (e: React.MouseEvent, direction: "up" | "down") => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const prev = voted;
-
-    if (prev === direction) {
-      // Undo
-      setVoted(null);
-      if (direction === "up") setLocalUp((v) => Math.max(v - 1, 0));
-      else setLocalDown((v) => Math.max(v - 1, 0));
-      localStorage.removeItem(`jio-vote-${id}`);
-      onVote(id, direction, prev);
-    } else if (prev === null) {
-      // New vote
-      setVoted(direction);
-      if (direction === "up") setLocalUp((v) => v + 1);
-      else setLocalDown((v) => v + 1);
-      localStorage.setItem(`jio-vote-${id}`, direction);
-      onVote(id, direction, null);
-    } else {
-      // Switch direction
-      setVoted(direction);
-      if (direction === "up") {
-        setLocalUp((v) => v + 1);
-        setLocalDown((v) => Math.max(v - 1, 0));
-      } else {
-        setLocalDown((v) => v + 1);
-        setLocalUp((v) => Math.max(v - 1, 0));
-      }
-      localStorage.setItem(`jio-vote-${id}`, direction);
-      onVote(id, direction, prev);
-    }
-  };
-
+export function EventCard({ title, venue, blurb, tags, sourceUrl, eventDateStart, eventDateEnd, entranceDelay, onTagClick }: EventCardProps) {
   return (
     <div
       className="card-entrance"
@@ -97,42 +41,27 @@ export function EventCard({ id, title, venue, blurb, tags, sourceUrl, eventDateS
           {tags.map((tag) => {
             const color = TAG_COLORS[tag] || "var(--color-muted)";
             return (
-              <span
+              <button
                 key={tag}
-                className="text-xs px-2 py-0.5 rounded-full"
+                type="button"
+                className={`text-xs px-2.5 py-1 rounded-full transition-all duration-200 ${onTagClick ? "cursor-pointer hover:brightness-125 hover:scale-105" : ""}`}
                 style={{
                   color,
-                  backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
+                  backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+                }}
+                onClick={(e) => {
+                  if (onTagClick) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onTagClick(tag);
+                  }
                 }}
               >
                 {tag}
-              </span>
+              </button>
             );
           })}
-        </div>
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={(e) => handleVote(e, "up")}
-              className={cn(
-                "text-sm transition-opacity",
-                voted === "up" ? "opacity-100" : "opacity-50 hover:opacity-80"
-              )}
-              aria-label="Thumbs up"
-            >
-              👍 {localUp > 0 && <span className="text-xs">{localUp}</span>}
-            </button>
-            <button
-              onClick={(e) => handleVote(e, "down")}
-              className={cn(
-                "text-sm transition-opacity",
-                voted === "down" ? "opacity-100" : "opacity-50 hover:opacity-80"
-              )}
-              aria-label="Thumbs down"
-            >
-              👎 {localDown > 0 && <span className="text-xs">{localDown}</span>}
-            </button>
-          </div>
         </div>
       </a>
     </div>

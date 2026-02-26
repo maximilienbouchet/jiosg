@@ -35,8 +35,6 @@
   - One-sentence blurb (LLM-generated)
   - Tags as colored pills
   - Link to source/tickets (opens in new tab)
-- **Tag filter bar** at top — click a tag to filter events
-- **Thumbs up / thumbs down** on each event card (anonymous, no auth required)
 - **Empty state** when no events pass the filter: a single cheeky line like "Quiet week. Singapore's charging up." — not an apology, a personality moment
 - **Email subscribe** — single email input field, minimal. "Get the list every Thursday." Uses Resend free tier (3,000 emails/month)
 - **"Heads Up" section** — below the main event feed, above the subscribe form
@@ -44,9 +42,8 @@
   - LLM-auto-selected during the blurb+tags pipeline (no admin involvement required)
   - Each card shows the actual event date, title, venue, blurb, tags
   - Cards have a left accent border to visually distinguish from the main feed
-  - Section header: "HEADS UP" with subtitle "Worth booking before they're gone."
+  - Section header: "MARK YOUR CALENDAR" with subtitle "Coming up — worth booking now."
   - Renders nothing when no heads-up events exist (no empty state)
-  - Tag filter does NOT apply to this section
   - Static regardless of week navigation (always anchored to today + 7 days)
   - Events auto-transition to the main feed when their date enters the 7-day window
 - **Footer** with one-liner about the project
@@ -56,7 +53,7 @@
 - Password-protected route (/admin, simple hardcoded password or env var)
 - **Manual event submission:** paste a URL → backend fetches page content → LLM generates blurb + tags → preview → approve/reject/edit → publish
 - **Event moderation view:** see all events (scraped + manual), toggle visibility, edit blurbs/tags
-- **Feedback dashboard:** see thumbs up/down counts per event (simple table)
+- **Event analytics:** basic event visibility tracking via admin panel
 
 ### 3.3 Scraping Pipeline
 
@@ -141,8 +138,6 @@ events
 ├── is_heads_up         (boolean, default false — LLM flag for notable events worth booking early)
 ├── is_duplicate        (boolean, default false — algorithmically detected cross-source duplicate)
 ├── duplicate_of        (UUID, nullable — references the canonical event this is a duplicate of)
-├── thumbs_up           (integer, default 0)
-├── thumbs_down         (integer, default 0)
 ├── created_at          (datetime)
 ├── updated_at          (datetime)
 
@@ -245,9 +240,6 @@ Respond with JSON only:
 │     ←  SAT 22 FEB — FRI 28 FEB  →      │  ← week navigation, centered
 │                                         │
 ├─────────────────────────────────────────┤
-│  [live & loud] [culture fix] [go see]   │  ← tag filter bar (horizontal scroll on mobile)
-│  [game on] [taste test] [touch grass]   │
-├─────────────────────────────────────────┤
 │                                         │
 │  SAT 22 FEB                             │  ← date header
 │  ┌─────────────────────────────────┐    │
@@ -256,7 +248,6 @@ Respond with JSON only:
 │  │ World-class table tennis returns │    │
 │  │ with $1.55M in prize money.     │    │
 │  │ [game on] [bring someone]        │    │
-│  │                        👍 👎 →  │    │  ← thumbs + link arrow
 │  └─────────────────────────────────┘    │
 │                                         │
 │  ┌─────────────────────────────────┐    │
@@ -265,7 +256,6 @@ Respond with JSON only:
 │  │ Monet to Matisse — rare loans   │    │
 │  │ from Musée d'Orsay in SG.       │    │
 │  │ [go see] [bring someone]         │    │
-│  │                        👍 👎 →  │    │
 │  └─────────────────────────────────┘    │
 │                                         │
 │  SUN 23 FEB                             │  ← next date header
@@ -280,8 +270,8 @@ Respond with JSON only:
 │                                         │
 ├─────────────────────────────────────────┤
 │                                         │
-│  ─── HEADS UP ───                      │
-│  Worth booking before they're gone.     │
+│  ─── MARK YOUR CALENDAR ───            │
+│  Coming up — worth booking now.         │
 │                                         │
 │  ┃ SAT 15 MAR                           │
 │  ┃ Ottolenghi Live                      │
@@ -289,7 +279,6 @@ Respond with JSON only:
 │  ┃ The chef talks fermentation —        │
 │  ┃ tickets selling fast.                │
 │  ┃ [taste test] [once only]             │
-│  ┃                        👍 👎 →      │
 │                                         │
 ├─────────────────────────────────────────┤
 │  Get the list every Thursday.           │
@@ -304,7 +293,6 @@ Respond with JSON only:
 
 - Desktop: max-width 640px centered (reading-width, like a good blog)
 - Mobile: full width with 16px padding
-- Tag bar: horizontal scroll on mobile, wrapping on desktop
 - Event cards: full width, stacked
 
 ---
@@ -340,7 +328,7 @@ project-root/
 │   │   └── page.tsx       ← Admin panel
 │   ├── api/
 │   │   ├── events/
-│   │   │   └── route.ts   ← GET events for date range, POST thumbs
+│   │   │   └── route.ts   ← GET events for date range
 │   │   ├── subscribe/
 │   │   │   └── route.ts   ← POST email subscribe
 │   │   ├── admin/
@@ -369,7 +357,6 @@ project-root/
 │
 ├── components/
 │   ├── EventCard.tsx
-│   ├── TagFilter.tsx
 │   ├── WeekNav.tsx
 │   ├── SubscribeForm.tsx
 │   └── EmptyState.tsx
@@ -418,12 +405,10 @@ Session 2 (Sat afternoon): First scraper + LLM pipeline
 Session 3 (Sun morning): Frontend
 - EventCard component with real data from DB
 - Week navigation (← →) with rolling 7-day window
-- Tag filter bar (client-side filtering)
 - Empty state
 - Mobile responsive
 
 Session 4 (Sun afternoon): Polish + Deploy
-- Thumbs up/down functionality
 - Basic styling polish
 - Deploy to Vercel
 - Test on mobile

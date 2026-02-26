@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 import { EventList } from "../../components/admin/EventList";
 import { AddEventForm } from "../../components/admin/AddEventForm";
-import { FeedbackView } from "../../components/admin/FeedbackView";
 import { ScraperHealth } from "../../components/admin/ScraperHealth";
 import { SubscriberList } from "../../components/admin/SubscriberList";
 
-type Tab = "events" | "add" | "feedback" | "health" | "subscribers";
+type Tab = "events" | "add" | "health" | "subscribers";
 
 export default function AdminPage() {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
@@ -85,7 +84,6 @@ export default function AdminPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: "events", label: "Events" },
     { key: "add", label: "Add Event" },
-    { key: "feedback", label: "Feedback" },
     { key: "health", label: "Scraper Health" },
     { key: "subscribers", label: "Subscribers" },
   ];
@@ -125,7 +123,6 @@ export default function AdminPage() {
       {/* Tab content */}
       {activeTab === "events" && <EventList />}
       {activeTab === "add" && <AddEventForm />}
-      {activeTab === "feedback" && <FeedbackView />}
       {activeTab === "health" && <ScraperHealth />}
       {activeTab === "subscribers" && <SubscriberList />}
     </div>

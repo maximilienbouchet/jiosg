@@ -34,7 +34,7 @@ See @SPEC.md for full product requirements, data model, LLM prompts, and build p
 - Functional components with hooks
 - Tailwind utility classes only, no custom CSS files
 - Use `cn()` helper from lib/utils.ts for conditional classes (clsx + tailwind-merge)
-- Prefer server components. Use "use client" only when interactivity is needed (tag filters, thumbs, navigation)
+- Prefer server components. Use "use client" only when interactivity is needed (navigation, data fetching)
 
 ## Architecture
 

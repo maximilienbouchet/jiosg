@@ -19,8 +19,6 @@ interface AdminEvent {
   isHeadsUp: number;
   isDuplicate: number;
   duplicateOf: string | null;
-  thumbsUp: number;
-  thumbsDown: number;
 }
 
 const SOURCE_BADGES: Record<string, string> = {

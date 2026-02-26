@@ -1,8 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedEvents, adjustThumbs, initializeDb } from "../../../lib/db";
+import { getPublishedEvents, getEventsByTag, initializeDb } from "../../../lib/db";
+import { ALL_TAGS } from "../../../lib/tags";
 
 // GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD
+// GET /api/events?tag=live+%26+loud&limit=20&offset=0
 export async function GET(request: NextRequest) {
+  const tag = request.nextUrl.searchParams.get("tag");
+
+  await initializeDb();
+
+  if (tag) {
+    // Tag-based browsing mode
+    if (!ALL_TAGS.includes(tag as typeof ALL_TAGS[number])) {
+      return NextResponse.json({ error: "Invalid tag" }, { status: 400 });
+    }
+
+    const limit = Math.min(Number(request.nextUrl.searchParams.get("limit")) || 20, 100);
+    const offset = Number(request.nextUrl.searchParams.get("offset")) || 0;
+    const todaySgt = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
+
+    const rows = await getEventsByTag(tag, todaySgt, limit + 1, offset);
+    const hasMore = rows.length > limit;
+    const sliced = hasMore ? rows.slice(0, limit) : rows;
+
+    const events = sliced.map((row) => ({
+      id: row.id,
+      title: row.raw_title,
+      venue: row.venue,
+      blurb: row.blurb || "",
+      tags: row.tags ? JSON.parse(row.tags) : [],
+      sourceUrl: row.source_url,
+      eventDateStart: row.event_date_start,
+      eventDateEnd: row.event_date_end,
+    }));
+
+    return NextResponse.json({ events, hasMore });
+  }
+
+  // Date range mode (existing behavior)
   const start = request.nextUrl.searchParams.get("start");
   const end = request.nextUrl.searchParams.get("end");
 
@@ -10,7 +45,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing start or end parameter" }, { status: 400 });
   }
 
-  await initializeDb();
   const rows = await getPublishedEvents(start, end);
 
   const events = rows.map((row) => ({
@@ -22,50 +56,7 @@ export async function GET(request: NextRequest) {
     sourceUrl: row.source_url,
     eventDateStart: row.event_date_start,
     eventDateEnd: row.event_date_end,
-    thumbsUp: row.thumbs_up,
-    thumbsDown: row.thumbs_down,
   }));
 
   return NextResponse.json({ events });
-}
-
-// POST /api/events (thumbs up/down — toggleable)
-export async function POST(request: NextRequest) {
-  let body: { eventId?: string; vote?: string; previousVote?: string | null };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const { eventId, vote } = body;
-  if (!eventId || (vote !== "up" && vote !== "down")) {
-    return NextResponse.json({ error: "Invalid eventId or vote" }, { status: 400 });
-  }
-
-  const previousVote = body.previousVote;
-  if (previousVote !== undefined && previousVote !== null && previousVote !== "up" && previousVote !== "down") {
-    return NextResponse.json({ error: "Invalid previousVote" }, { status: 400 });
-  }
-
-  let upDelta = 0;
-  let downDelta = 0;
-
-  if (previousVote === vote) {
-    // Undo: clicking the same direction again
-    if (vote === "up") upDelta = -1;
-    else downDelta = -1;
-  } else if (previousVote === null || previousVote === undefined) {
-    // New vote
-    if (vote === "up") upDelta = 1;
-    else downDelta = 1;
-  } else {
-    // Switch direction
-    if (vote === "up") { upDelta = 1; downDelta = -1; }
-    else { upDelta = -1; downDelta = 1; }
-  }
-
-  await initializeDb();
-  const success = await adjustThumbs(eventId, upDelta, downDelta);
-  return NextResponse.json({ success });
 }

@@ -7,24 +7,24 @@ const mockEvents: EventRow[] = [
   {
     id: "1", source: "thekallang", source_url: "https://example.com/smash",
     raw_title: "Singapore Smash 2026", raw_description: null,
-    venue: "The Kallang \u00b7 Infinity Arena",
+    venue: "The Kallang · Infinity Arena",
     event_date_start: "2026-02-23", event_date_end: null,
     scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
     blurb: "World-class table tennis returns with $1.55M in prize money.",
     tags: JSON.stringify(["game on", "bring someone"]),
     is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 85,
-    thumbs_up: 3, thumbs_down: 0, created_at: "2026-02-20", updated_at: "2026-02-20",
+    created_at: "2026-02-20", updated_at: "2026-02-20",
   },
   {
     id: "2", source: "esplanade", source_url: "https://example.com/jazz",
     raw_title: "Late Night Jazz: Akira Tana Trio",
-    raw_description: null, venue: "Esplanade \u00b7 Recital Studio",
+    raw_description: null, venue: "Esplanade · Recital Studio",
     event_date_start: "2026-02-23", event_date_end: null,
     scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
     blurb: "San Francisco-based drummer Akira Tana brings bop and swing to Esplanade.",
     tags: JSON.stringify(["live & loud", "culture fix"]),
     is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 90,
-    thumbs_up: 5, thumbs_down: 1, created_at: "2026-02-20", updated_at: "2026-02-20",
+    created_at: "2026-02-20", updated_at: "2026-02-20",
   },
   {
     id: "3", source: "eventbrite", source_url: "https://example.com/wine",
@@ -35,7 +35,7 @@ const mockEvents: EventRow[] = [
     blurb: "Twelve natural wine importers pour their best in a hawker centre setting.",
     tags: JSON.stringify(["taste test", "try lah"]),
     is_manually_added: 0, is_published: 1, is_heads_up: 0, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 88,
-    thumbs_up: 8, thumbs_down: 0, created_at: "2026-02-20", updated_at: "2026-02-20",
+    created_at: "2026-02-20", updated_at: "2026-02-20",
   },
 ];
 
@@ -43,13 +43,13 @@ const mockHeadsUp: EventRow[] = [
   {
     id: "4", source: "manual", source_url: "https://example.com/ottolenghi",
     raw_title: "Ottolenghi Live", raw_description: null,
-    venue: "National Library \u00b7 Auditorium",
+    venue: "National Library · Auditorium",
     event_date_start: "2026-03-15", event_date_end: null,
     scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
-    blurb: "The chef talks fermentation \u2014 tickets selling fast.",
+    blurb: "The chef talks fermentation — tickets selling fast.",
     tags: JSON.stringify(["taste test", "once only"]),
     is_manually_added: 1, is_published: 1, is_heads_up: 1, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 95,
-    thumbs_up: 12, thumbs_down: 0, created_at: "2026-02-20", updated_at: "2026-02-20",
+    created_at: "2026-02-20", updated_at: "2026-02-20",
   },
 ];
 

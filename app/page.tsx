@@ -4,7 +4,7 @@ import { SubscribeForm } from "../components/SubscribeForm";
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-10 bg-[var(--color-bg)]/80 backdrop-blur-md">
+      <header>
         <div className="max-w-[640px] mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold tracking-tight">
             <span
@@ -31,7 +31,7 @@ export default function Home() {
         />
       </header>
 
-      <main className="flex-1 max-w-[640px] mx-auto w-full px-4 py-6">
+      <main className="flex-1 max-w-[640px] mx-auto w-full px-4 pt-0 pb-6">
         <EventsView />
       </main>
 

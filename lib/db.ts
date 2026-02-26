@@ -26,8 +26,6 @@ export interface EventRow {
   duplicate_of: string | null;
   enriched_description: string | null;
   llm_score: number | null;
-  thumbs_up: number;
-  thumbs_down: number;
   created_at: string;
   updated_at: string;
 }
@@ -114,19 +112,17 @@ export async function initializeDb(): Promise<void> {
         duplicate_of TEXT,
         enriched_description TEXT,
         llm_score INTEGER,
-        thumbs_up INTEGER NOT NULL DEFAULT 0,
-        thumbs_down INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`, args: [] },
       { sql: `INSERT INTO events (id, source, source_url, raw_title, raw_description, venue,
         event_date_start, event_date_end, scraped_at, llm_included, llm_filter_reason, blurb, tags,
         is_manually_added, is_published, is_heads_up, is_duplicate, duplicate_of, enriched_description,
-        llm_score, thumbs_up, thumbs_down, created_at, updated_at)
+        llm_score, created_at, updated_at)
         SELECT id, source, source_url, raw_title, raw_description, venue,
         event_date_start, event_date_end, scraped_at, llm_included, llm_filter_reason, blurb, tags,
         is_manually_added, is_published, is_heads_up, is_duplicate, duplicate_of, enriched_description,
-        llm_score, thumbs_up, thumbs_down, created_at, updated_at
+        llm_score, created_at, updated_at
         FROM events_old`, args: [] },
       { sql: "DROP TABLE events_old", args: [] },
       { sql: "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_source_url ON events(source_url)", args: [] },
@@ -159,15 +155,6 @@ export async function getPublishedEvents(startDate: string, endDate: string): Pr
   return result.rows as unknown as EventRow[];
 }
 
-export async function adjustThumbs(eventId: string, upDelta: number, downDelta: number): Promise<boolean> {
-  const db = getClient();
-  const result = await db.execute({
-    sql: `UPDATE events SET thumbs_up = MAX(thumbs_up + ?, 0), thumbs_down = MAX(thumbs_down + ?, 0), updated_at = datetime('now') WHERE id = ?`,
-    args: [upDelta, downDelta, eventId],
-  });
-  return (result.rowsAffected ?? 0) > 0;
-}
-
 export async function insertEvent(event: {
   id: string;
   source: string;
@@ -193,13 +180,13 @@ export async function insertEvent(event: {
         event_date_start, event_date_end, scraped_at,
         llm_included, llm_filter_reason, blurb, tags,
         is_manually_added, is_published, is_heads_up,
-        thumbs_up, thumbs_down, created_at, updated_at
+        created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, datetime('now'),
         ?, ?, ?, ?,
         ?, ?, ?,
-        0, 0, datetime('now'), datetime('now')
+        datetime('now'), datetime('now')
       )
     `,
     args: [
@@ -243,12 +230,12 @@ export async function upsertEvent(event: {
         id, source, source_url, raw_title, raw_description, venue,
         event_date_start, event_date_end, scraped_at,
         is_manually_added, is_published,
-        thumbs_up, thumbs_down, created_at, updated_at
+        created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, datetime('now'),
         0, 0,
-        0, 0, datetime('now'), datetime('now')
+        datetime('now'), datetime('now')
       )
       ON CONFLICT(source_url) DO UPDATE SET
         raw_title = excluded.raw_title,
@@ -370,9 +357,26 @@ export async function getHeadsUpEvents(todaySgt: string): Promise<EventRow[]> {
         AND is_published = 1
         AND event_date_start > date(?, '+7 days')
       ORDER BY event_date_start ASC
-      LIMIT 3
+      LIMIT 20
     `,
     args: [todaySgt],
+  });
+  return result.rows as unknown as EventRow[];
+}
+
+export async function getEventsByTag(
+  tag: string,
+  todaySgt: string,
+  limit: number,
+  offset: number
+): Promise<EventRow[]> {
+  const db = getClient();
+  const pattern = `%"${tag}"%`;
+  const result = await db.execute({
+    sql: `SELECT * FROM events
+          WHERE is_published = 1 AND event_date_start >= ? AND tags LIKE ?
+          ORDER BY event_date_start ASC LIMIT ? OFFSET ?`,
+    args: [todaySgt, pattern, limit, offset],
   });
   return result.rows as unknown as EventRow[];
 }

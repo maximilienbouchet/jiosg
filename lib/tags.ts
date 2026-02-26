@@ -27,3 +27,18 @@ export const TAG_COLORS: Record<string, string> = {
   "once only": "var(--color-tag-once-only)",
   "try lah": "var(--color-tag-try-lah)",
 };
+
+export const TAG_DESCRIPTIONS: Record<string, string> = {
+  "live & loud": "Concerts, live music, DJ sets",
+  "culture fix": "Theatre, ballet, orchestra, opera",
+  "go see": "Exhibitions, art shows, galleries",
+  "game on": "Sports events, tournaments",
+  "screen time": "Film screenings, cinema events",
+  "taste test": "Food festivals, wine tastings",
+  "touch grass": "Outdoor activities, runs, walks",
+  "free lah": "No cost events",
+  "last call": "Ending within 7 days",
+  "bring someone": "Great for a date or with friends",
+  "once only": "One-time, limited, rare",
+  "try lah": "Something outside your comfort zone",
+};

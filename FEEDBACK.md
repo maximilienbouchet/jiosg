@@ -2,6 +2,14 @@
 
 ## Inbox
 <!-- Raw feedback lands here via /add-feedback -->
+- [ ] [2026-02-24] Anon4: "Missing big events like 'Now You See Me' at Marina Bay Sands theatre — sources seem to miss major shows"
+- [ ] [2026-02-24] Anon4: "Grey text (venue, date) on black background is difficult to read — improve contrast"
+- [ ] [2026-02-24] Anon4: "Dark mode is hard to read overall — add a light mode toggle option"
+- [ ] [2026-02-24] Anon4: "Tag pill colours are difficult to read"
+- [ ] [2026-02-24] Anon4: "Tag names are confusing — switch to conventional categories like Concerts, Workshops for clarity (though local flavour like 'free lah' is nice)"
+- [ ] [2026-02-24] Anon4: "'Heads Up' section purpose is unclear — is it recommended or happening soon? Make it scrollable/interactive and clarify"
+- [ ] [2026-02-24] Anon4: "Add a filter system (Date, Venue, Price) to narrow down events"
+- [ ] [2026-02-24] Anon4: "Expand viewing window beyond 7 days so users can see further ahead"
 
 ## Triaged
 
@@ -18,14 +26,25 @@
 - [ ] [2026-02-23] Anon2: "If you have many events in a week, you have to scroll far to reach Saturday — add day-of-week quick-filter buttons (Mon, Tue... Sat) above the event list"
 - [ ] [2026-02-23] Anon2: "Clicking a tag on an event card should filter by that tag (like clicking a category pill)"
 - [ ] [2026-02-23] Anon2: "No time-of-day info on events — want to know if it's a morning, afternoon, or evening event to plan my day"
+- [ ] [2026-02-24] Anon3: "Show a floating week starting from today — don't show yesterday's events, they're already past"
+- [x] [2026-02-24] Anon3: "Like/dislike icons are too small — I keep accidentally clicking the event card instead of the thumbs button" — Won't do (feature removed)
+- [ ] [2026-02-24] Zoltan: "Sources are too limited — should scrape ticketmaster, sistic, feverup, lamc, etc. for concerts and comedy"
+- [ ] [2026-02-24] Zoltan: "UI not optimised for wide screen (laptop) — tag names get cut off at edge of view"
+- [ ] [2026-02-24] Zoltan: "Empty state after tag filter says 'will email you' but user never subscribed — misleading message"
 - [x] [2026-02-23] Alexandre: "Add Peatix as a source — has events like Ice Cream Sundays that would fit well"
 - [x] [2026-02-23] Anirudh: "Add Ticketek and Fever as event sources"
 - [x] [2026-02-23] Lucas: "Add Tessera as an event source"
 
 ### P3 — Nice to have (polish, minor annoyances)
+- [ ] [2026-02-24] Anon3: "Simplify tag names — want more direct, intuitive categories like music, art, nature, sport instead of 'live & loud' etc., and reduce overlaps between tags"
+- [ ] [2026-02-24] Anon3: "Don't like the shimmer/reflection animation effect on event cards"
 - [ ] [2026-02-24] Anon: "Add a calendar/date picker so I can jump to a specific date instead of scrolling through weeks"
 - [ ] [2026-02-24] Anon: "Add geographic zone filter (central, east, west) so I can find events near me"
 - [ ] [2026-02-23] Anon2: "Too many Eventbrite events, not enough from other sources — wants more source diversity"
+- [ ] [2026-02-24] Zoltan: "Add a monthly view next to the weekly one, combined with tag filtering"
+- [ ] [2026-02-24] Zoltan: "When subscribing for email, it's unclear which tags/events you're subscribing to"
+- [ ] [2026-02-24] Zoltan: "Add a modal popup for event details instead of direct link — prevents accidental navigation"
+- [x] [2026-02-24] Zoltan: "What's the point of likes? Should be able to sort events by like count (signals likes may be noise — consider removing like/dislike entirely)" — Won't do (feature removed)
 
 ### Won't do (out of scope or intentional)
 - [ ] [2026-02-24] Anon: "Tag names are unclear (live & loud, bring someone) — want more intuitive categories like Art/Music/Comedy or Date-friendly/Group-friendly"
@@ -36,6 +55,15 @@
 - [ ] [2026-02-23] Anon2: "Collaborative recommendations — 'users who liked this event also liked...' (needs accounts)"
 - [ ] [2026-02-23] Anon2: "Consider one-day-per-page layout with expandable time slots (morning/afternoon/evening) and swipe to change day"
 - [ ] [2026-02-23] Anon2: "Background is too dark — would prefer a lighter option"
+- [ ] [2026-02-24] Anon3: "Would definitely use a music/concert tag filter — that's my main use case"
+- [ ] [2026-02-24] Zoltan: "Value proposition unclear — seems to do a very similar thing as catch.sg"
+- [ ] [2026-02-24] Zoltan: "Add endless scrolling browse option for each tag (underlying issue: with ~10 events/week, tag filter often yields 0-2 results — consider showing all matching events across a longer time horizon when a tag is selected)"
+- [ ] [2026-02-24] Zoltan: "Add at least a simple image for each event to make the UI nicer"
+- [ ] [2026-02-24] Zoltan: "Tag bar is not draggable — only horizontal scroll works, annoying on Windows with a mouse (N/A: tag bar removed)"
+- [ ] [2026-02-24] Zoltan: "Can like and dislike at the same time — not meaningful, maybe remove dislikes (already fixed; broader removal captured in likes P3 item)"
+- [ ] [2026-02-24] Zoltan: "Total likes count doesn't update when selected tags are changed (N/A: tag bar removed)"
+- [ ] [2026-02-24] Zoltan: "Tag filtering is broken — behaves like OR with multiple tags but AND with one, and sorting changes based on last selected tag (N/A: tag bar removed)"
+- [ ] [2026-02-24] Zoltan: "Ditto on Sam's point 4 — don't like the shimmer/reflection animation (duplicate of Anon3's P3 item)"
 
 ## Done
 <!-- Completed items moved here with date -->
