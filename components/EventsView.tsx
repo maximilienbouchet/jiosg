@@ -69,6 +69,9 @@ export function EventsView() {
   // Weekly data fetch
   const { startDate, endDate } = useMemo(() => {
     const monday = getMonday(todaySgt);
+    if (weekOffset === 0) {
+      return { startDate: todaySgt, endDate: addDays(monday, 6) };
+    }
     const s = addDays(monday, weekOffset * 7);
     return { startDate: s, endDate: addDays(s, 6) };
   }, [todaySgt, weekOffset]);
