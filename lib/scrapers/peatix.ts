@@ -1,8 +1,14 @@
 import { initializeDb, checkEventExists, upsertEvent } from "../db";
 
 const SEARCH_URL = "https://peatix.com/search/events?country=SG&l.ll=1.3343,103.8724&p=1&size=300";
-const USER_AGENT = "SGEventsCuration/1.0";
+const USER_AGENT = "Mozilla/5.0 (compatible; SGEventsCuration/1.0)";
 const DETAIL_DELAY_MS = 1000; // Respect robots.txt Crawl-delay: 1
+const MAX_RETRIES = 2;
+
+const COMMON_HEADERS: Record<string, string> = {
+  "User-Agent": USER_AGENT,
+  "Accept": "application/json",
+};
 
 interface PeatixSearchEvent {
   id: number;
@@ -16,21 +22,51 @@ interface PeatixSearchEvent {
   thumb_venue?: string;
 }
 
-interface PeatixDetailData {
-  event?: {
-    description?: string;
-  };
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function toDateString(dt: string | null): string | null {
   if (!dt) return null;
-  // Peatix returns ISO datetime strings like "2026-03-01T19:00:00+08:00"
+  // Peatix returns datetime strings like "2026-03-01 09:00:00 +0800"
   const match = dt.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] : null;
+}
+
+async function fetchJson(url: string, extraHeaders?: Record<string, string>): Promise<unknown> {
+  const headers = { ...COMMON_HEADERS, ...extraHeaders };
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      console.log(`[peatix] Retry ${attempt}/${MAX_RETRIES} for ${url}`);
+      await sleep(2000 * attempt);
+    }
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} from ${url}`);
+    }
+
+    const text = await response.text();
+    if (!text || text.length === 0) {
+      lastError = new Error(`Empty response body from ${url} (status ${response.status})`);
+      console.warn(`[peatix] ${lastError.message}, retrying...`);
+      continue;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      lastError = new Error(
+        `Invalid JSON from ${url} (${text.length} bytes, starts with: ${JSON.stringify(text.slice(0, 120))})`
+      );
+      console.warn(`[peatix] ${lastError.message}, retrying...`);
+      continue;
+    }
+  }
+
+  throw lastError;
 }
 
 export async function scrapePeatix(): Promise<number> {
@@ -39,18 +75,11 @@ export async function scrapePeatix(): Promise<number> {
 
   let events: PeatixSearchEvent[];
   try {
-    const response = await fetch(SEARCH_URL, {
-      headers: {
-        "User-Agent": USER_AGENT,
-        "X-Requested-With": "XMLHttpRequest",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`Search API returned ${response.status}`);
-    }
-    const data = await response.json();
-    const nested = data.json_data || data;
-    events = Array.isArray(nested) ? nested : (nested.events || nested.results || []);
+    const data = await fetchJson(SEARCH_URL, {
+      "X-Requested-With": "XMLHttpRequest",
+    }) as Record<string, unknown>;
+    const nested = (data.json_data || data) as Record<string, unknown>;
+    events = (Array.isArray(nested) ? nested : (nested.events || nested.results || [])) as PeatixSearchEvent[];
   } catch (err) {
     console.error("[peatix] Failed to fetch search results:", err);
     throw err;
@@ -75,16 +104,13 @@ export async function scrapePeatix(): Promise<number> {
     let description: string | null = null;
     try {
       await sleep(DETAIL_DELAY_MS);
-      const detailRes = await fetch(`https://peatix.com/event/${event.id}/get_view_data`, {
-        headers: { "User-Agent": USER_AGENT },
-      });
-      if (detailRes.ok) {
-        const detail: PeatixDetailData = await detailRes.json();
-        description = detail.event?.description || null;
-        // Strip HTML tags from description
-        if (description) {
-          description = description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        }
+      const detail = await fetchJson(`https://peatix.com/event/${event.id}/get_view_data`) as Record<string, unknown>;
+      // Response wraps in json_data: { event: { description: "..." } }
+      const eventData = (detail.json_data as Record<string, unknown> | undefined)?.event as Record<string, unknown> | undefined;
+      description = (eventData?.description as string) || null;
+      // Strip HTML tags from description
+      if (description) {
+        description = description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       }
     } catch (err) {
       console.warn(`[peatix] Failed to fetch detail for event ${event.id}:`, err);
