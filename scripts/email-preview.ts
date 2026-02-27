@@ -51,6 +51,28 @@ const mockHeadsUp: EventRow[] = [
     is_manually_added: 1, is_published: 1, is_heads_up: 1, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 95,
     created_at: "2026-02-20", updated_at: "2026-02-20",
   },
+  {
+    id: "5", source: "esplanade", source_url: "https://example.com/ballet",
+    raw_title: "Singapore Dance Theatre: Swan Lake", raw_description: null,
+    venue: "Esplanade · Theatre",
+    event_date_start: "2026-03-22", event_date_end: null,
+    scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
+    blurb: "Full-length Swan Lake with the Singapore Symphony — a rare staging.",
+    tags: JSON.stringify(["culture fix", "bring someone"]),
+    is_manually_added: 0, is_published: 1, is_heads_up: 1, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 92,
+    created_at: "2026-02-20", updated_at: "2026-02-20",
+  },
+  {
+    id: "6", source: "eventbrite", source_url: "https://example.com/artfair",
+    raw_title: "Art After Dark: Gillman Barracks", raw_description: null,
+    venue: "Gillman Barracks",
+    event_date_start: "2026-03-08", event_date_end: null,
+    scraped_at: "2026-02-20", llm_included: 1, llm_filter_reason: null,
+    blurb: "Galleries stay open late with live music, drinks, and new exhibitions.",
+    tags: JSON.stringify(["go see", "free lah"]),
+    is_manually_added: 0, is_published: 1, is_heads_up: 1, is_duplicate: 0, duplicate_of: null, enriched_description: null, llm_score: 88,
+    created_at: "2026-02-20", updated_at: "2026-02-20",
+  },
 ];
 
 const html = buildDigestHtml(mockEvents, mockHeadsUp, "https://jio.sg", "test-token-123", {

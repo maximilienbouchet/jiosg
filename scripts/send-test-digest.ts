@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { initializeDb, getPublishedEvents, getHeadsUpEvents } from "../lib/db";
+import { initializeDb, getPublishedEvents, getTopHeadsUpEventsForDigest } from "../lib/db";
 import { buildDigestHtml } from "../lib/email";
 import { getDigestWindow } from "../lib/dates";
 import { generateDigestIntro } from "../lib/llm";
@@ -25,7 +25,7 @@ async function main() {
   const { start: startDate, end: endDate } = getDigestWindow(today);
 
   const events = await getPublishedEvents(startDate, endDate);
-  const headsUpEvents = await getHeadsUpEvents(today);
+  const headsUpEvents = await getTopHeadsUpEventsForDigest(today, 3);
 
   if (events.length === 0 && headsUpEvents.length === 0) {
     console.log("No published events found for the digest window. Email would be empty.");

@@ -364,6 +364,25 @@ export async function getHeadsUpEvents(todaySgt: string): Promise<EventRow[]> {
   return result.rows as unknown as EventRow[];
 }
 
+export async function getTopHeadsUpEventsForDigest(
+  todaySgt: string,
+  limit = 3
+): Promise<EventRow[]> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `
+      SELECT * FROM events
+      WHERE is_heads_up = 1
+        AND is_published = 1
+        AND event_date_start > date(?, '+7 days')
+      ORDER BY COALESCE(llm_score, 0) DESC, event_date_start ASC
+      LIMIT ?
+    `,
+    args: [todaySgt, limit],
+  });
+  return result.rows as unknown as EventRow[];
+}
+
 export async function getEventsByTag(
   tag: string,
   todaySgt: string,

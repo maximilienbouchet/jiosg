@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import {
   initializeDb,
   getPublishedEvents,
-  getHeadsUpEvents,
+  getTopHeadsUpEventsForDigest,
   getActiveSubscribers,
   EventRow,
 } from "./db";
@@ -246,7 +246,7 @@ export async function sendDigestEmail(): Promise<{
   const { start: startDate, end: endDate } = getDigestWindow(today);
 
   const events = await getPublishedEvents(startDate, endDate);
-  const headsUpEvents = await getHeadsUpEvents(today);
+  const headsUpEvents = await getTopHeadsUpEventsForDigest(today, 3);
 
   if (events.length === 0 && headsUpEvents.length === 0) {
     return { sent: 0, failed: 0, skipped: "No events for this week", errors: [] };
