@@ -1,13 +1,17 @@
 import { initializeDb, checkEventExists, upsertEvent } from "../db";
 
-const SEARCH_URL = "https://peatix.com/search/events?country=SG&l.ll=1.3343,103.8724&p=1&size=300";
-const USER_AGENT = "Mozilla/5.0 (compatible; SGEventsCuration/1.0)";
+const SEARCH_URL = "https://peatix.com/search/events?country=SG&l.ll=1.3343,103.8724&p=1&size=100";
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const DETAIL_DELAY_MS = 1000; // Respect robots.txt Crawl-delay: 1
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 3;
 
 const COMMON_HEADERS: Record<string, string> = {
   "User-Agent": USER_AGENT,
   "Accept": "application/json",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Referer": "https://peatix.com/search",
 };
 
 interface PeatixSearchEvent {
@@ -39,8 +43,9 @@ async function fetchJson(url: string, extraHeaders?: Record<string, string>): Pr
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
-      console.log(`[peatix] Retry ${attempt}/${MAX_RETRIES} for ${url}`);
-      await sleep(2000 * attempt);
+      const delay = 3000 * attempt;
+      console.log(`[peatix] Retry ${attempt}/${MAX_RETRIES} for ${url} (waiting ${delay}ms)`);
+      await sleep(delay);
     }
 
     const response = await fetch(url, { headers });
