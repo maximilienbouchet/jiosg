@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendDigestEmail } from "../../../../lib/email";
 import { verifyCronAuth } from "../../../../lib/cron-auth";
 
+export const maxDuration = 60;
+
 async function handleEmail() {
   try {
     const result = await sendDigestEmail();

@@ -50,3 +50,33 @@ CREATE TABLE IF NOT EXISTS scraper_runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_scraper_runs_source_ran ON scraper_runs(source, ran_at);
+
+CREATE TABLE IF NOT EXISTS digest_runs (
+  id TEXT PRIMARY KEY,
+  ran_at TEXT NOT NULL DEFAULT (datetime('now')),
+  subject TEXT,
+  events_count INTEGER NOT NULL DEFAULT 0,
+  heads_up_count INTEGER NOT NULL DEFAULT 0,
+  subscribers_count INTEGER NOT NULL DEFAULT 0,
+  total_sent INTEGER NOT NULL DEFAULT 0,
+  total_failed INTEGER NOT NULL DEFAULT 0,
+  skipped TEXT,
+  completed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_digest_runs_ran_at ON digest_runs(ran_at);
+
+CREATE TABLE IF NOT EXISTS email_logs (
+  id TEXT PRIMARY KEY,
+  digest_run_id TEXT NOT NULL REFERENCES digest_runs(id),
+  subscriber_id TEXT,
+  email TEXT NOT NULL,
+  subject TEXT,
+  resend_message_id TEXT,
+  status TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
+  error TEXT,
+  sent_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_logs_run_id ON email_logs(digest_run_id);
+CREATE INDEX IF NOT EXISTS idx_email_logs_subscriber ON email_logs(subscriber_id);

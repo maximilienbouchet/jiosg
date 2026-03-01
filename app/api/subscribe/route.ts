@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 } from "uuid";
 import { initializeDb, insertSubscriber } from "../../../lib/db";
+import { sendWelcomeEmail } from "../../../lib/email";
 
 export async function POST(request: NextRequest) {
   let body: { email?: unknown };
@@ -21,7 +22,17 @@ export async function POST(request: NextRequest) {
   }
 
   await initializeDb();
-  const { alreadyExists } = await insertSubscriber(v4(), trimmed, v4());
+  const subscriberId = v4();
+  const unsubscribeToken = v4();
+  const { alreadyExists } = await insertSubscriber(subscriberId, trimmed, unsubscribeToken);
+
+  if (!alreadyExists) {
+    try {
+      await sendWelcomeEmail(trimmed, unsubscribeToken);
+    } catch (err) {
+      console.error("[welcome-email] Failed:", err);
+    }
+  }
 
   // Always return success to avoid leaking which emails are subscribed
   return NextResponse.json({ success: true, alreadyExists });

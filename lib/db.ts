@@ -523,3 +523,105 @@ export async function deactivateSubscriber(token: string): Promise<boolean> {
   });
   return (result.rowsAffected ?? 0) > 0;
 }
+
+// --- Digest runs & email logs ---
+
+export interface DigestRunRow {
+  id: string;
+  ran_at: string;
+  subject: string | null;
+  events_count: number;
+  heads_up_count: number;
+  subscribers_count: number;
+  total_sent: number;
+  total_failed: number;
+  skipped: string | null;
+  completed_at: string | null;
+}
+
+export interface EmailLogRow {
+  id: string;
+  digest_run_id: string;
+  subscriber_id: string | null;
+  email: string;
+  subject: string | null;
+  resend_message_id: string | null;
+  status: "sent" | "failed";
+  error: string | null;
+  sent_at: string;
+}
+
+export async function createDigestRun(run: {
+  id: string;
+  subject: string | null;
+  events_count: number;
+  heads_up_count: number;
+  subscribers_count: number;
+  skipped: string | null;
+}): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: `INSERT INTO digest_runs (id, ran_at, subject, events_count, heads_up_count, subscribers_count, skipped)
+          VALUES (?, datetime('now'), ?, ?, ?, ?, ?)`,
+    args: [run.id, run.subject, run.events_count, run.heads_up_count, run.subscribers_count, run.skipped],
+  });
+}
+
+export async function updateDigestRun(
+  runId: string,
+  totals: { total_sent: number; total_failed: number }
+): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: `UPDATE digest_runs SET total_sent = ?, total_failed = ?, completed_at = datetime('now') WHERE id = ?`,
+    args: [totals.total_sent, totals.total_failed, runId],
+  });
+}
+
+export async function logEmailSend(log: {
+  digest_run_id: string;
+  subscriber_id: string | null;
+  email: string;
+  subject: string | null;
+  resend_message_id: string | null;
+  status: "sent" | "failed";
+  error: string | null;
+}): Promise<void> {
+  const db = getClient();
+  await db.execute({
+    sql: `INSERT INTO email_logs (id, digest_run_id, subscriber_id, email, subject, resend_message_id, status, error, sent_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    args: [
+      crypto.randomUUID(), log.digest_run_id, log.subscriber_id, log.email,
+      log.subject, log.resend_message_id, log.status, log.error,
+    ],
+  });
+}
+
+export async function getRecentDigestRuns(limit = 20): Promise<DigestRunRow[]> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: "SELECT * FROM digest_runs ORDER BY ran_at DESC LIMIT ?",
+    args: [limit],
+  });
+  return result.rows as unknown as DigestRunRow[];
+}
+
+export async function getDigestRunDetails(runId: string): Promise<{
+  run: DigestRunRow | null;
+  logs: EmailLogRow[];
+}> {
+  const db = getClient();
+  const runResult = await db.execute({
+    sql: "SELECT * FROM digest_runs WHERE id = ?",
+    args: [runId],
+  });
+  const logsResult = await db.execute({
+    sql: "SELECT * FROM email_logs WHERE digest_run_id = ? ORDER BY sent_at ASC",
+    args: [runId],
+  });
+  return {
+    run: (runResult.rows[0] as unknown as DigestRunRow) ?? null,
+    logs: logsResult.rows as unknown as EmailLogRow[],
+  };
+}

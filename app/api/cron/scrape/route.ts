@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAllScrapers } from "../../../../lib/scrapers";
 import { initializeDb, insertScraperRun } from "../../../../lib/db";
-import { sendScraperAlertEmail } from "../../../../lib/email";
+import { sendPipelineReportEmail } from "../../../../lib/email";
 import { verifyCronAuth } from "../../../../lib/cron-auth";
 
 export const maxDuration = 300;
@@ -27,7 +27,7 @@ async function handleScrape() {
 
   let alert = null;
   if (hasIssues) {
-    alert = await sendScraperAlertEmail({
+    alert = await sendPipelineReportEmail({
       zeroSources,
       errorSources: errors,
       bySource,

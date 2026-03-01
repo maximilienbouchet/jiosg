@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAllScrapers } from "../../../../lib/scrapers";
 import { initializeDb, insertScraperRun } from "../../../../lib/db";
-import { sendScraperAlertEmail } from "../../../../lib/email";
+import { sendPipelineReportEmail, LlmPipelineStats } from "../../../../lib/email";
 import { processUnfilteredEvents } from "../../../../lib/llm";
 import { verifyCronAuth } from "../../../../lib/cron-auth";
 
@@ -28,16 +28,6 @@ export async function GET(request: NextRequest) {
   const zeroSources = ALL_SOURCES.filter(
     (s) => !(s in errors) && (bySource[s] ?? 0) === 0
   );
-  const hasIssues = zeroSources.length > 0 || Object.keys(errors).length > 0;
-
-  let alert = null;
-  if (hasIssues) {
-    alert = await sendScraperAlertEmail({
-      zeroSources,
-      errorSources: errors,
-      bySource,
-    });
-  }
 
   // Phase 2: LLM processing — loop until backlog is cleared
   let totalProcessed = 0;
@@ -46,6 +36,8 @@ export async function GET(request: NextRequest) {
   let totalLlmErrors = 0;
   let totalDeduplicated = 0;
   let llmBatches = 0;
+  let llmCrashed = false;
+  let llmCrashError: string | undefined;
 
   try {
     let remaining = Infinity;
@@ -63,25 +55,37 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error("[scrape-and-process] LLM processing error:", error);
+    llmCrashed = true;
+    llmCrashError = error instanceof Error ? error.message : String(error);
   }
+
+  // Phase 3: Send pipeline report email (always, after LLM)
+  const llmStats: LlmPipelineStats = {
+    processed: totalProcessed,
+    included: totalIncluded,
+    excluded: totalExcluded,
+    errors: totalLlmErrors,
+    deduplicated: totalDeduplicated,
+    batches: llmBatches,
+    crashed: llmCrashed || undefined,
+    crashError: llmCrashError,
+  };
+
+  const alert = await sendPipelineReportEmail(
+    { zeroSources, errorSources: errors, bySource },
+    llmStats
+  );
 
   const hasErrors = Object.keys(errors).length > 0;
 
   return NextResponse.json({
-    success: !hasErrors,
+    success: !hasErrors && !llmCrashed,
     scrape: {
       total,
       bySource,
       errors,
     },
-    llm: {
-      processed: totalProcessed,
-      included: totalIncluded,
-      excluded: totalExcluded,
-      errors: totalLlmErrors,
-      deduplicated: totalDeduplicated,
-      batches: llmBatches,
-    },
+    llm: llmStats,
     alert,
   });
 }
