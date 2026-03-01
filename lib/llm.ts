@@ -20,6 +20,22 @@ export interface BlurbResult {
   score: number;
 }
 
+function truncateBlurb(blurb: string, maxLen: number): string {
+  if (blurb.length <= maxLen) return blurb;
+  // Try to cut at the last sentence-ending period within the limit
+  const truncated = blurb.slice(0, maxLen);
+  const lastPeriod = truncated.lastIndexOf(".");
+  if (lastPeriod > maxLen * 0.5) {
+    return truncated.slice(0, lastPeriod + 1);
+  }
+  // No good sentence boundary — cut at last space and add ellipsis
+  const lastSpace = truncated.lastIndexOf(" ");
+  if (lastSpace > 0) {
+    return truncated.slice(0, lastSpace) + "...";
+  }
+  return truncated + "...";
+}
+
 const FILTER_SYSTEM_PROMPT = `You are a strict event curator for a website that recommends quality cultural and lifestyle events in Singapore to people aged 20-40.
 
 Your job: decide if an event should be INCLUDED or EXCLUDED. We show ~10 events per week — if it's a quiet week, show fewer; never pad.
@@ -163,7 +179,7 @@ export async function generateBlurbAndTags(
     const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(10, Math.round(rawScore))) : 5;
 
     return {
-      blurb: String(parsed.blurb).slice(0, 200),
+      blurb: truncateBlurb(String(parsed.blurb), 200),
       tags: validTags.length > 0 ? validTags : [],
       headsUp: Boolean(parsed.heads_up),
       score,

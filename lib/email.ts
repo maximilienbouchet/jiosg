@@ -291,7 +291,7 @@ export function buildWelcomeHtml(
 ): string {
   let eventsHtml = "";
   if (events.length > 0) {
-    eventsHtml += `<tr><td style="padding:16px 0 8px 0;font-family:'Space Grotesk',Arial,sans-serif;font-size:14px;font-weight:bold;color:#E8E8ED;">Here's what's coming up:</td></tr>`;
+    eventsHtml += `<tr><td style="padding:16px 0 8px 0;font-family:'Space Grotesk',Arial,sans-serif;font-size:14px;font-weight:bold;color:#E8E8ED;">On our radar — worth booking early:</td></tr>`;
 
     const grouped = groupEventsByDate(events);
     for (const [dateKey, dateEvents] of grouped) {
@@ -353,7 +353,7 @@ export async function sendWelcomeEmail(
   await initializeDb();
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
-  const events = await getTopHeadsUpEventsForDigest(today, 5);
+  const events = await getTopHeadsUpEventsForDigest(today, 2);
 
   const html = buildWelcomeHtml(events, siteUrl, unsubscribeToken);
   const subject = "you're in";
