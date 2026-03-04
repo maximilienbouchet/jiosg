@@ -20,7 +20,10 @@ export function WeekNav({ startDate, endDate, onPrevWeek, onNextWeek }: WeekNavP
       >
         &larr;
       </button>
-      <span className="font-[family-name:var(--font-space-grotesk)] font-medium tracking-wide">
+      <span
+        key={`${startDate.getTime()}`}
+        className="font-[family-name:var(--font-space-grotesk)] font-medium tracking-wide week-date-fade"
+      >
         {format(startDate)} — {format(endDate)}
       </span>
       <button

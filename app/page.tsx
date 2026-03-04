@@ -6,20 +6,20 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <header>
         <div className="max-w-[640px] mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold tracking-tight">
-            <span
-              className="bg-clip-text text-transparent animate-gradient-shift bg-[length:200%_auto]
-                motion-reduce:animate-none motion-reduce:text-[var(--color-text)]"
-              style={{
-                backgroundImage: "linear-gradient(90deg, #F5A623, #6B8AFF, #7C3AED, #F5A623)",
-              }}
-            >
-              jio
-            </span>
-          </h1>
-          <span className="text-xs text-[var(--color-muted)] hidden sm:block">
-            Curated things to do this week
-          </span>
+          <a href="/" className="cursor-pointer">
+            <h1 className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold tracking-tight">
+              <span
+                className="bg-clip-text text-transparent animate-gradient-shift bg-[length:200%_auto]
+                  motion-reduce:animate-none motion-reduce:text-[var(--color-text)]"
+                style={{
+                  backgroundImage: "linear-gradient(90deg, #F5A623, #6B8AFF, #7C3AED, #F5A623)",
+                }}
+              >
+                jio
+              </span>
+            </h1>
+          </a>
+          <span id="header-subtitle" className="hidden sm:block"></span>
         </div>
         <div
           className="h-px w-full animate-border-glow bg-[length:200%_auto]

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { WeekNav } from "./WeekNav";
 import { EventCard } from "./EventCard";
 import { EmptyState } from "./EmptyState";
@@ -38,6 +39,12 @@ export function EventsView() {
   const [tagLoading, setTagLoading] = useState(false);
   const tagLoadingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Portal target for header subtitle
+  const [subtitleTarget, setSubtitleTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setSubtitleTarget(document.getElementById('header-subtitle'));
+  }, []);
 
   // Read tag from URL on mount
   useEffect(() => {
@@ -78,6 +85,7 @@ export function EventsView() {
 
   useEffect(() => {
     setLoading(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     fetch(`/api/events?start=${startDate}&end=${endDate}`)
       .then((res) => res.json())
       .then((data) => {
@@ -139,8 +147,16 @@ export function EventsView() {
     return () => observer.disconnect();
   }, [activeTag, tagHasMore, tagOffset, fetchTagEvents]);
 
-  const onPrevWeek = useCallback(() => setWeekOffset((prev) => prev - 1), []);
-  const onNextWeek = useCallback(() => setWeekOffset((prev) => prev + 1), []);
+  const directionRef = useRef<'next' | 'prev'>('next');
+
+  const onPrevWeek = useCallback(() => {
+    directionRef.current = 'prev';
+    setWeekOffset((prev) => prev - 1);
+  }, []);
+  const onNextWeek = useCallback(() => {
+    directionRef.current = 'next';
+    setWeekOffset((prev) => prev + 1);
+  }, []);
 
   const handleTagClick = useCallback((tag: string) => {
     setActiveTag(tag);
@@ -254,11 +270,28 @@ export function EventsView() {
   const startDateObj = new Date(startDate + "T00:00:00");
   const endDateObj = new Date(endDate + "T00:00:00");
 
+  const subtitle = weekOffset === 0 ? 'Curated things to do this week'
+    : weekOffset === 1 ? 'Curated things to do next week'
+    : weekOffset === -1 ? 'Curated things to do last week'
+    : weekOffset > 1 ? `Curated things to do in ${weekOffset} weeks`
+    : `Curated things to do ${Math.abs(weekOffset)} weeks ago`;
+
+  const subtitlePortal = subtitleTarget && createPortal(
+    <span key={weekOffset} className="text-xs text-[var(--color-muted)] week-date-fade">
+      {subtitle}
+    </span>,
+    subtitleTarget
+  );
+
   return (
     <div>
-      <div>
-        <WeekNav startDate={startDateObj} endDate={endDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
+      {subtitlePortal}
+      <WeekNav startDate={startDateObj} endDate={endDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
 
+      <div
+        key={weekOffset}
+        className={directionRef.current === 'next' ? 'week-enter-next' : 'week-enter-prev'}
+      >
         {loading ? (
           <p className="text-center py-16 text-[var(--color-muted)]">Loading...</p>
         ) : events.length === 0 ? (
