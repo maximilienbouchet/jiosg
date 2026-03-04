@@ -47,8 +47,8 @@ export function EventCard({ title, venue, blurb, tags, sourceUrl, eventDateStart
                 className={`text-xs px-2.5 py-1 rounded-full transition-all duration-200 ${onTagClick ? "cursor-pointer hover:brightness-125 hover:scale-105" : ""}`}
                 style={{
                   color,
-                  backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
-                  border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+                  backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
                 }}
                 onClick={(e) => {
                   if (onTagClick) {

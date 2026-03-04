@@ -132,11 +132,11 @@ export async function sendPipelineReportEmail(
 
 const EMAIL_TAG_COLORS: Record<string, string> = {
   "live & loud": "#3B82F6",
-  "culture fix": "#7C3AED",
+  "culture fix": "#9F67FF",
   "go see": "#D97706",
   "game on": "#22C55E",
   "screen time": "#EF4444",
-  "taste test": "#9F1239",
+  "taste test": "#F2568B",
   "touch grass": "#84CC16",
   "free lah": "#EAB308",
   "last call": "#F97316",
@@ -174,7 +174,7 @@ function groupEventsByDate(events: EventRow[], weekStart?: string): Map<string, 
 }
 
 function renderTagPill(tag: string): string {
-  const color = EMAIL_TAG_COLORS[tag] || "#6B6B76";
+  const color = EMAIL_TAG_COLORS[tag] || "#9494A0";
   // 25 = ~15% opacity in hex
   const bgColor = color + "25";
   return `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;border-radius:12px;font-size:11px;font-family:Inter,Arial,sans-serif;color:${color};background-color:${bgColor};border:1px solid ${color}40;">${tag}</span>`;
@@ -193,12 +193,12 @@ function renderEvent(event: EventRow, isHeadsUp: boolean): string {
   const leftBorder = isHeadsUp ? "border-left:3px solid #F5A623;padding-left:12px;" : "";
   const dateRange = formatDateRange(event.event_date_start, event.event_date_end);
   const dateRangeHtml = dateRange
-    ? `<span style="color:#6B6B76;font-size:13px;font-family:Inter,Arial,sans-serif;">${dateRange}</span><br/>`
+    ? `<span style="color:#9494A0;font-size:13px;font-family:Inter,Arial,sans-serif;">${dateRange}</span><br/>`
     : "";
 
   return `<tr><td style="padding:0 0 20px 0;${leftBorder}">
     ${titleHtml}<br/>
-    <span style="color:#6B6B76;font-size:13px;font-family:Inter,Arial,sans-serif;">${venue}</span><br/>
+    <span style="color:#9494A0;font-size:13px;font-family:Inter,Arial,sans-serif;">${venue}</span><br/>
     ${dateRangeHtml}<span style="color:#E8E8ED;font-size:14px;font-family:Inter,Arial,sans-serif;">${blurb}</span><br/>
     <div style="margin-top:6px;">${tagHtml}</div>
   </td></tr>`;
@@ -235,7 +235,7 @@ export function buildDigestHtml(
   if (headsUpEvents.length > 0) {
     headsUpHtml += `<tr><td style="padding:24px 0 4px 0;"><hr style="border:none;border-top:1px solid #1a1a24;"/></td></tr>`;
     headsUpHtml += `<tr><td style="padding:16px 0 4px 0;font-family:'Space Grotesk',Arial,sans-serif;font-size:18px;font-weight:bold;color:#F5A623;">HEADS UP</td></tr>`;
-    headsUpHtml += `<tr><td style="padding:0 0 12px 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#6B6B76;">Worth booking before they're gone.</td></tr>`;
+    headsUpHtml += `<tr><td style="padding:0 0 12px 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#9494A0;">Worth booking before they're gone.</td></tr>`;
 
     const headsUpGrouped = groupEventsByDate(headsUpEvents);
     for (const [dateKey, dateEvents] of headsUpGrouped) {
@@ -263,7 +263,7 @@ export function buildDigestHtml(
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;margin:0 auto;">
   <tr><td style="padding:32px 24px 8px 24px;">
     <span style="font-family:'Space Grotesk',Arial,sans-serif;font-size:28px;font-weight:bold;color:#F5A623;">jio</span><br/>
-    <span style="font-family:Inter,Arial,sans-serif;font-size:13px;color:#6B6B76;">${dateRange}</span>
+    <span style="font-family:Inter,Arial,sans-serif;font-size:13px;color:#9494A0;">${dateRange}</span>
   </td></tr>
   ${introBlock}
   <tr><td style="padding:8px 24px 0 24px;">
@@ -275,7 +275,7 @@ export function buildDigestHtml(
   <tr><td style="padding:24px 24px 8px 24px;"><hr style="border:none;border-top:1px solid #1a1a24;"/></td></tr>
   <tr><td style="padding:8px 24px 32px 24px;font-family:Inter,Arial,sans-serif;font-size:13px;">
     <a href="${siteUrl}" style="color:#6B8AFF;text-decoration:none;">See all events \u2192</a><br/>
-    <a href="${siteUrl}/unsubscribe?token=${unsubscribeToken}" style="color:#6B6B76;text-decoration:none;font-size:11px;">Unsubscribe</a>
+    <a href="${siteUrl}/unsubscribe?token=${unsubscribeToken}" style="color:#9494A0;text-decoration:none;font-size:11px;">Unsubscribe</a>
   </td></tr>
 </table>
 </td></tr>
@@ -327,7 +327,7 @@ export function buildWelcomeHtml(
   <tr><td style="padding:24px 24px 8px 24px;"><hr style="border:none;border-top:1px solid #1a1a24;"/></td></tr>
   <tr><td style="padding:8px 24px 32px 24px;font-family:Inter,Arial,sans-serif;font-size:13px;">
     <a href="${siteUrl}" style="color:#6B8AFF;text-decoration:none;">See all events \u2192</a><br/>
-    <a href="${siteUrl}/unsubscribe?token=${unsubscribeToken}" style="color:#6B6B76;text-decoration:none;font-size:11px;">Unsubscribe</a>
+    <a href="${siteUrl}/unsubscribe?token=${unsubscribeToken}" style="color:#9494A0;text-decoration:none;font-size:11px;">Unsubscribe</a>
   </td></tr>
 </table>
 </td></tr>

@@ -14,7 +14,7 @@
   --color-text: #E8E8ED;
   --color-accent: #F5A623;
   --color-link: #6B8AFF;
-  --color-muted: #6B6B76;
+  --color-muted: #9494A0;
 
   /* Surface levels (blue-purple tinted grays) */
   --color-surface-1: #12111A;
@@ -22,11 +22,11 @@
 
   /* Tag colors */
   --color-tag-live-loud: #3B82F6;
-  --color-tag-culture-fix: #7C3AED;
+  --color-tag-culture-fix: #9F67FF;
   --color-tag-go-see: #D97706;
   --color-tag-game-on: #22C55E;
   --color-tag-screen-time: #EF4444;
-  --color-tag-taste-test: #9F1239;
+  --color-tag-taste-test: #F2568B;
   --color-tag-touch-grass: #84CC16;
   --color-tag-free-lah: #EAB308;
   --color-tag-last-call: #F97316;
