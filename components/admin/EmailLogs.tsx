@@ -73,7 +73,7 @@ export function EmailLogs() {
   const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/email-logs")
+    fetch("/api/admin/data?type=email-logs")
       .then((res) => res.json())
       .then((data) => setRuns(data.runs || []))
       .catch(() => setRuns([]))
@@ -84,7 +84,7 @@ export function EmailLogs() {
     setSelectedRun(run);
     setLogsLoading(true);
     try {
-      const res = await fetch(`/api/admin/email-logs?runId=${run.id}`);
+      const res = await fetch(`/api/admin/data?type=email-logs&runId=${run.id}`);
       const data = await res.json();
       setLogs(data.logs || []);
     } catch {

@@ -18,9 +18,11 @@ const SOURCE_LABELS: Record<string, string> = {
   peatix: "Peatix",
   fever: "Fever",
   tessera: "Tessera",
+  scape: "*SCAPE",
+  srt: "SRT",
 };
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera"];
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt"];
 
 function formatTimestamp(iso: string): string {
   const date = new Date(iso + "Z");
@@ -63,7 +65,7 @@ export function ScraperHealth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/scraper-health")
+    fetch("/api/admin/data?type=scraper-health")
       .then((res) => res.json())
       .then((data) => setRuns(data.runs || []))
       .catch(() => setRuns([]))

@@ -14,7 +14,7 @@ export function SubscriberList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/subscribers")
+    fetch("/api/admin/data?type=subscribers")
       .then((res) => res.json())
       .then((data) => {
         setSubscribers(data.subscribers || []);

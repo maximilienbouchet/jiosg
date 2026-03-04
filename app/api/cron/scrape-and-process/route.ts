@@ -7,11 +7,49 @@ import { verifyCronAuth } from "../../../../lib/cron-auth";
 
 export const maxDuration = 300;
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape"];
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt"];
 
+// GET /api/cron/scrape-and-process              → full pipeline (default)
+// GET /api/cron/scrape-and-process?action=scrape  → scrape only
+// GET /api/cron/scrape-and-process?action=process → LLM only
 export async function GET(request: NextRequest) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
+
+  const action = request.nextUrl.searchParams.get("action");
+
+  // Action: process-only (LLM)
+  if (action === "process") {
+    try {
+      const result = await processUnfilteredEvents(10);
+      return NextResponse.json({ success: true, ...result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return NextResponse.json({ success: false, message }, { status: 500 });
+    }
+  }
+
+  // Action: scrape-only
+  if (action === "scrape") {
+    const { total, bySource, errors } = await runAllScrapers();
+    await initializeDb();
+    for (const source of ALL_SOURCES) {
+      if (source in errors) {
+        await insertScraperRun({ source, events_found: 0, error: errors[source] });
+      } else {
+        await insertScraperRun({ source, events_found: bySource[source] ?? 0, error: null });
+      }
+    }
+    const hasErrors = Object.keys(errors).length > 0;
+    return NextResponse.json({
+      success: !hasErrors,
+      total,
+      bySource,
+      errors,
+    });
+  }
+
+  // Default: full pipeline (scrape + process)
 
   // Phase 1: Scrape
   const { total, bySource, errors } = await runAllScrapers();
