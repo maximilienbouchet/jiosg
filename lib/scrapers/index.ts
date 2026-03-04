@@ -5,6 +5,7 @@ import { scrapeSportPlus } from "./sportplus";
 import { scrapePeatix } from "./peatix";
 import { scrapeFever } from "./fever";
 import { scrapeTessera } from "./tessera";
+import { scrapeScape } from "./scape";
 
 export async function runAllScrapers(): Promise<{
   total: number;
@@ -23,6 +24,7 @@ export async function runAllScrapers(): Promise<{
     { name: "peatix", fn: scrapePeatix },
     { name: "fever", fn: scrapeFever },
     { name: "tessera", fn: scrapeTessera },
+    { name: "scape", fn: scrapeScape },
   ];
 
   for (const scraper of scrapers) {

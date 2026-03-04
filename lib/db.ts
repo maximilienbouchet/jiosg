@@ -93,7 +93,7 @@ export async function initializeDb(): Promise<void> {
       { sql: "ALTER TABLE events RENAME TO events_old", args: [] },
       { sql: `CREATE TABLE events (
         id TEXT PRIMARY KEY,
-        source TEXT NOT NULL CHECK (source IN ('eventbrite', 'thekallang', 'esplanade', 'sportplus', 'manual', 'peatix', 'fever', 'tessera')),
+        source TEXT NOT NULL CHECK (source IN ('eventbrite', 'thekallang', 'esplanade', 'sportplus', 'manual', 'peatix', 'fever', 'tessera', 'scape')),
         source_url TEXT NOT NULL,
         raw_title TEXT NOT NULL,
         raw_description TEXT,

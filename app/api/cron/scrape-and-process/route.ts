@@ -7,7 +7,7 @@ import { verifyCronAuth } from "../../../../lib/cron-auth";
 
 export const maxDuration = 300;
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera"];
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape"];
 
 export async function GET(request: NextRequest) {
   const authError = verifyCronAuth(request);
