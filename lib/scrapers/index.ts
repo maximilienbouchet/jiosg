@@ -6,6 +6,7 @@ import { scrapePeatix } from "./peatix";
 import { scrapeFever } from "./fever";
 import { scrapeTessera } from "./tessera";
 import { scrapeScape } from "./scape";
+import { scrapeSrt } from "./srt";
 
 export async function runAllScrapers(): Promise<{
   total: number;
@@ -25,21 +26,30 @@ export async function runAllScrapers(): Promise<{
     { name: "fever", fn: scrapeFever },
     { name: "tessera", fn: scrapeTessera },
     { name: "scape", fn: scrapeScape },
+    { name: "srt", fn: scrapeSrt },
   ];
 
-  for (const scraper of scrapers) {
-    try {
+  // Run all scrapers in parallel for speed (critical for Vercel 60s timeout)
+  const results = await Promise.allSettled(
+    scrapers.map(async (scraper) => {
       const count = await scraper.fn();
-      bySource[scraper.name] = count;
-      total += count;
+      return { name: scraper.name, count };
+    })
+  );
 
-      if (count === 0) {
-        console.warn(`[scrapers] Warning: ${scraper.name} returned 0 new events`);
+  for (let i = 0; i < scrapers.length; i++) {
+    const result = results[i];
+    const name = scrapers[i].name;
+    if (result.status === "fulfilled") {
+      bySource[name] = result.value.count;
+      total += result.value.count;
+      if (result.value.count === 0) {
+        console.warn(`[scrapers] Warning: ${name} returned 0 new events`);
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      errors[scraper.name] = message;
-      console.error(`[scrapers] ${scraper.name} failed:`, message);
+    } else {
+      const message = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      errors[name] = message;
+      console.error(`[scrapers] ${name} failed:`, message);
     }
   }
 

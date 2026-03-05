@@ -5,7 +5,7 @@ import { sendPipelineReportEmail, LlmPipelineStats } from "../../../../lib/email
 import { processUnfilteredEvents } from "../../../../lib/llm";
 import { verifyCronAuth } from "../../../../lib/cron-auth";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt"];
 
@@ -49,9 +49,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Default: full pipeline (scrape + process)
+  // Default: full pipeline (scrape + process + report)
 
-  // Phase 1: Scrape
+  // Phase 1: Scrape (parallel — fits within timeout)
   const { total, bySource, errors } = await runAllScrapers();
 
   await initializeDb();
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     (s) => !(s in errors) && (bySource[s] ?? 0) === 0
   );
 
-  // Phase 2: LLM processing — loop until backlog is cleared
+  // Phase 2: LLM processing — single batch to stay within timeout
   let totalProcessed = 0;
   let totalIncluded = 0;
   let totalExcluded = 0;
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     llmCrashError = error instanceof Error ? error.message : String(error);
   }
 
-  // Phase 3: Send pipeline report email (always, after LLM)
+  // Phase 3: Send pipeline report email (after LLM so stats are included)
   const llmStats: LlmPipelineStats = {
     processed: totalProcessed,
     included: totalIncluded,
