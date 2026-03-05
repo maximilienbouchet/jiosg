@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 } from "uuid";
+import { resolveMx, resolve4 } from "dns/promises";
 import { initializeDb, insertSubscriber } from "../../../lib/db";
 import { sendWelcomeEmail } from "../../../lib/email";
 
@@ -19,6 +20,18 @@ export async function POST(request: NextRequest) {
   const trimmed = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) || trimmed.length > 254) {
     return NextResponse.json({ success: false, message: "Invalid email" }, { status: 400 });
+  }
+
+  // Verify the email domain has MX (or at least A) records
+  const domain = trimmed.split("@")[1];
+  try {
+    await resolveMx(domain);
+  } catch {
+    try {
+      await resolve4(domain);
+    } catch {
+      return NextResponse.json({ success: false, message: "Invalid email domain" }, { status: 400 });
+    }
   }
 
   await initializeDb();
