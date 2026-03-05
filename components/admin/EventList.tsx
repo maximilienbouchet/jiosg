@@ -30,6 +30,8 @@ const SOURCE_BADGES: Record<string, string> = {
   peatix: "bg-yellow-100 text-yellow-700",
   fever: "bg-pink-100 text-pink-700",
   tessera: "bg-cyan-100 text-cyan-700",
+  scape: "bg-teal-100 text-teal-700",
+  srt: "bg-indigo-100 text-indigo-700",
 };
 
 export function EventList() {

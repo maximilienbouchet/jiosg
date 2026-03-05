@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
-  source TEXT NOT NULL CHECK (source IN ('eventbrite', 'thekallang', 'esplanade', 'sportplus', 'manual', 'peatix', 'fever', 'tessera', 'scape')),
+  source TEXT NOT NULL CHECK (source IN ('eventbrite', 'thekallang', 'esplanade', 'sportplus', 'manual', 'peatix', 'fever', 'tessera', 'scape', 'srt')),
   source_url TEXT NOT NULL,
   raw_title TEXT NOT NULL,
   raw_description TEXT,

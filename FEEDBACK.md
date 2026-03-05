@@ -2,18 +2,12 @@
 
 ## Inbox
 <!-- Raw feedback lands here via /add-feedback -->
-- [ ] [2026-02-24] Anon4: "Missing big events like 'Now You See Me' at Marina Bay Sands theatre — sources seem to miss major shows"
-- [ ] [2026-02-24] Anon4: "Grey text (venue, date) on black background is difficult to read — improve contrast"
-- [ ] [2026-02-24] Anon4: "Dark mode is hard to read overall — add a light mode toggle option"
-- [ ] [2026-02-24] Anon4: "Tag pill colours are difficult to read"
-- [ ] [2026-02-24] Anon4: "Tag names are confusing — switch to conventional categories like Concerts, Workshops for clarity (though local flavour like 'free lah' is nice)"
-- [ ] [2026-02-24] Anon4: "'Heads Up' section purpose is unclear — is it recommended or happening soon? Make it scrollable/interactive and clarify"
-- [ ] [2026-02-24] Anon4: "Add a filter system (Date, Venue, Price) to narrow down events"
-- [ ] [2026-02-24] Anon4: "Expand viewing window beyond 7 days so users can see further ahead"
 
 ## Triaged
 
 ### P1 — Must fix (blocks testers or breaks core flow)
+- [x] [2026-02-24] Anon4: "Grey text (venue, date) on black background is difficult to read — improve contrast"
+- [x] [2026-02-24] Anon4: "Tag pill colours are difficult to read"
 - [x] [2026-02-24] Anon: "Rolling week window (Mon-Sun, Tue-Mon...) is cognitively hard to navigate — want standard week boundaries"
 - [x] [2026-02-24] Anon: "Thumbs up vote cannot be undone — should be toggleable"
 - [x] [2026-02-23] Anon2: "Week start day is inconsistent (starts on Tuesday, then Sunday) — should be a standard fixed order"
@@ -29,6 +23,7 @@
 - [ ] [2026-02-24] Anon3: "Show a floating week starting from today — don't show yesterday's events, they're already past"
 - [x] [2026-02-24] Anon3: "Like/dislike icons are too small — I keep accidentally clicking the event card instead of the thumbs button" — Won't do (feature removed)
 - [ ] [2026-02-24] Zoltan: "Sources are too limited — should scrape ticketmaster, sistic, feverup, lamc, etc. for concerts and comedy"
+- [ ] [2026-02-24] Anon4: "Missing big events like 'Now You See Me' at Marina Bay Sands theatre — sources seem to miss major shows"
 - [ ] [2026-02-24] Zoltan: "UI not optimised for wide screen (laptop) — tag names get cut off at edge of view"
 - [ ] [2026-02-24] Zoltan: "Empty state after tag filter says 'will email you' but user never subscribed — misleading message"
 - [x] [2026-02-23] Alexandre: "Add Peatix as a source — has events like Ice Cream Sundays that would fit well"
@@ -36,6 +31,7 @@
 - [x] [2026-02-23] Lucas: "Add Tessera as an event source"
 
 ### P3 — Nice to have (polish, minor annoyances)
+- [ ] [2026-02-24] Anon4: "'Heads Up' section purpose is unclear — is it recommended or happening soon? Make it scrollable/interactive and clarify"
 - [ ] [2026-02-24] Anon3: "Simplify tag names — want more direct, intuitive categories like music, art, nature, sport instead of 'live & loud' etc., and reduce overlaps between tags"
 - [ ] [2026-02-24] Anon3: "Don't like the shimmer/reflection animation effect on event cards"
 - [ ] [2026-02-24] Anon: "Add a calendar/date picker so I can jump to a specific date instead of scrolling through weeks"
@@ -47,6 +43,10 @@
 - [x] [2026-02-24] Zoltan: "What's the point of likes? Should be able to sort events by like count (signals likes may be noise — consider removing like/dislike entirely)" — Won't do (feature removed)
 
 ### Won't do (out of scope or intentional)
+- [ ] [2026-02-24] Anon4: "Dark mode is hard to read overall — add a light mode toggle option"
+- [ ] [2026-02-24] Anon4: "Tag names are confusing — switch to conventional categories like Concerts, Workshops for clarity (though local flavour like 'free lah' is nice)"
+- [ ] [2026-02-24] Anon4: "Add a filter system (Date, Venue, Price) to narrow down events"
+- [ ] [2026-02-24] Anon4: "Expand viewing window beyond 7 days so users can see further ahead"
 - [ ] [2026-02-24] Anon: "Tag names are unclear (live & loud, bring someone) — want more intuitive categories like Art/Music/Comedy or Date-friendly/Group-friendly"
 - [ ] [2026-02-24] Anon: "Add ability to save events to a list and share that list with someone (like Airbnb saved places or GrabFood group orders)"
 - [ ] [2026-02-23] Anon2: "Add a map view to see events by location (like Booking.com)"
