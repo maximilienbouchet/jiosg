@@ -447,7 +447,11 @@ export async function sendDigestEmail(): Promise<{
   let failed = 0;
   const errors: string[] = [];
 
-  for (const subscriber of subscribers) {
+  for (let i = 0; i < subscribers.length; i++) {
+    const subscriber = subscribers[i];
+    // Resend free tier allows 2 requests/second — pause between sends
+    if (i > 0) await new Promise((r) => setTimeout(r, 600));
+
     const html = buildDigestHtml(events, headsUpEvents, siteUrl, subscriber.unsubscribe_token, {
       weekStart: startDate,
       startDate,
