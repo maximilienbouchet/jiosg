@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAllScrapers } from "../../../../lib/scrapers";
-import { initializeDb, insertScraperRun } from "../../../../lib/db";
+import { initializeDb, insertScraperRun, getLatestScraperStats } from "../../../../lib/db";
 import { sendPipelineReportEmail, LlmPipelineStats } from "../../../../lib/email";
 import { processUnfilteredEvents } from "../../../../lib/llm";
 import { verifyCronAuth } from "../../../../lib/cron-auth";
@@ -18,15 +18,75 @@ export async function GET(request: NextRequest) {
 
   const action = request.nextUrl.searchParams.get("action");
 
-  // Action: process-only (LLM)
+  // Action: process-only (LLM + report email)
   if (action === "process") {
+    const startTime = Date.now();
+    const TIME_LIMIT_MS = 45_000; // 45s — leave 15s headroom for report email
+
+    let totalProcessed = 0;
+    let totalIncluded = 0;
+    let totalExcluded = 0;
+    let totalLlmErrors = 0;
+    let totalDeduplicated = 0;
+    let llmBatches = 0;
+    let llmCrashed = false;
+    let llmCrashError: string | undefined;
+
     try {
-      const result = await processUnfilteredEvents(10);
-      return NextResponse.json({ success: true, ...result });
+      let remaining = Infinity;
+      while (remaining > 0) {
+        if (Date.now() - startTime > TIME_LIMIT_MS) {
+          console.log(`[process] Time guard hit after ${llmBatches} batches (${totalProcessed} events). Stopping LLM loop.`);
+          break;
+        }
+        const result = await processUnfilteredEvents(20);
+        totalProcessed += result.processed;
+        totalIncluded += result.included;
+        totalExcluded += result.excluded;
+        totalLlmErrors += result.errors;
+        totalDeduplicated += result.deduplicated;
+        remaining = result.remaining;
+        llmBatches++;
+
+        if (result.processed === 0) break;
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return NextResponse.json({ success: false, message }, { status: 500 });
+      console.error("[process] LLM processing error:", error);
+      llmCrashed = true;
+      llmCrashError = error instanceof Error ? error.message : String(error);
     }
+
+    // Reconstruct scraper stats from the most recent scraper run in DB
+    const scraperStats = await getLatestScraperStats();
+
+    const llmStats: LlmPipelineStats = {
+      processed: totalProcessed,
+      included: totalIncluded,
+      excluded: totalExcluded,
+      errors: totalLlmErrors,
+      deduplicated: totalDeduplicated,
+      batches: llmBatches,
+      crashed: llmCrashed || undefined,
+      crashError: llmCrashError,
+    };
+
+    let alert;
+    try {
+      alert = await sendPipelineReportEmail(
+        scraperStats ?? { zeroSources: [], errorSources: {}, bySource: {} },
+        llmStats
+      );
+    } catch (emailError) {
+      console.error("[process] Failed to send report email:", emailError);
+      alert = { error: emailError instanceof Error ? emailError.message : String(emailError) };
+    }
+
+    return NextResponse.json({
+      success: !llmCrashed,
+      llm: llmStats,
+      scraperStats: scraperStats ? "from_db" : "unavailable",
+      alert,
+    });
   }
 
   // Action: scrape-only
@@ -49,7 +109,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Default: full pipeline (scrape + process + report)
+  // Default: full pipeline (scrape + process + report) — manual-only fallback, not used by cron
 
   // Phase 1: Scrape (parallel — fits within timeout)
   const { total, bySource, errors } = await runAllScrapers();

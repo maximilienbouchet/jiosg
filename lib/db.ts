@@ -515,6 +515,57 @@ export async function getRecentScraperRuns(days = 7): Promise<ScraperRunRow[]> {
   return result.rows as unknown as ScraperRunRow[];
 }
 
+export async function getLatestScraperStats(): Promise<{
+  bySource: Record<string, number>;
+  zeroSources: string[];
+  errorSources: Record<string, string>;
+} | null> {
+  const db = getClient();
+
+  // Find the most recent ran_at timestamp
+  const latest = await db.execute(
+    "SELECT ran_at FROM scraper_runs ORDER BY ran_at DESC LIMIT 1"
+  );
+  if (latest.rows.length === 0) return null;
+
+  const latestRanAt = latest.rows[0].ran_at as string;
+
+  // Fetch all rows within 10 minutes of that timestamp
+  const result = await db.execute({
+    sql: `SELECT * FROM scraper_runs
+          WHERE ran_at >= datetime(?, '-10 minutes')
+          ORDER BY ran_at DESC`,
+    args: [latestRanAt],
+  });
+  const rows = result.rows as unknown as ScraperRunRow[];
+  if (rows.length === 0) return null;
+
+  // Deduplicate by source (latest wins — rows already sorted DESC)
+  const seen = new Set<string>();
+  const dedupedRows: ScraperRunRow[] = [];
+  for (const row of rows) {
+    if (!seen.has(row.source)) {
+      seen.add(row.source);
+      dedupedRows.push(row);
+    }
+  }
+
+  const bySource: Record<string, number> = {};
+  const errorSources: Record<string, string> = {};
+  const zeroSources: string[] = [];
+
+  for (const row of dedupedRows) {
+    bySource[row.source] = row.events_found;
+    if (row.error) {
+      errorSources[row.source] = row.error;
+    } else if (row.events_found === 0) {
+      zeroSources.push(row.source);
+    }
+  }
+
+  return { bySource, zeroSources, errorSources };
+}
+
 export async function deactivateSubscriber(token: string): Promise<boolean> {
   const db = getClient();
   const result = await db.execute({

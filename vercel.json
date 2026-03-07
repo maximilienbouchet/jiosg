@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/scrape-and-process",
+      "path": "/api/cron/scrape-and-process?action=scrape",
       "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/scrape-and-process?action=process",
+      "schedule": "10 19 * * *"
     },
     {
       "path": "/api/cron/email",
