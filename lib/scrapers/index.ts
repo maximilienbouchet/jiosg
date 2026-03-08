@@ -7,6 +7,7 @@ import { scrapeFever } from "./fever";
 import { scrapeTessera } from "./tessera";
 import { scrapeScape } from "./scape";
 import { scrapeSrt } from "./srt";
+import { scrapeBookMyShow } from "./bookmyshow";
 
 export async function runAllScrapers(): Promise<{
   total: number;
@@ -27,6 +28,7 @@ export async function runAllScrapers(): Promise<{
     { name: "tessera", fn: scrapeTessera },
     { name: "scape", fn: scrapeScape },
     { name: "srt", fn: scrapeSrt },
+    { name: "bookmyshow", fn: scrapeBookMyShow },
   ];
 
   // Run all scrapers in parallel for speed (critical for Vercel 60s timeout)

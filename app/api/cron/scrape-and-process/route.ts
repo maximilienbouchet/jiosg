@@ -7,7 +7,7 @@ import { verifyCronAuth } from "../../../../lib/cron-auth";
 
 export const maxDuration = 60;
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt"];
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt", "bookmyshow"];
 
 // GET /api/cron/scrape-and-process              → full pipeline (default)
 // GET /api/cron/scrape-and-process?action=scrape  → scrape only
