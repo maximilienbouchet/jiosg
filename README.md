@@ -66,12 +66,12 @@ jio exposes an MCP server at `https://jiosg.app/api/mcp`, letting AI assistants 
 
 | Tool | Description |
 |------|-------------|
-| `get_week_events` | Rolling 7-day feed from today — the main jio experience. Optional tag filter. |
-| `get_weekend_events` | Friday–Sunday events with smart "upcoming Friday" logic. Optional tag filter. |
-| `search_events` | Keyword search across titles, descriptions, venues, and tags. |
-| `get_heads_up_events` | "Mark Your Calendar" events beyond the 7-day window worth booking now. |
-| `get_events_by_tag` | Browse by tag with pagination. Validates against the 12-tag vocabulary. |
-| `get_event_details` | Full details for a single event by ID — extended description, dates, source. |
+| `get_week_events` | Rolling 7-day curated event feed — the main jio experience |
+| `get_weekend_events` | What's on this Friday–Sunday |
+| `get_heads_up_events` | Notable events beyond the 7-day window worth booking now |
+| `get_events_by_tag` | Browse events by category tag |
+| `get_event_details` | Full details for a single event by ID |
+| `search_events` | Keyword search across titles, descriptions, venues, and tags |
 
 ### Claude Desktop config
 
@@ -81,11 +81,14 @@ Add to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "jio-events": {
-      "url": "https://jiosg.app/api/mcp"
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://jiosg.app/api/mcp"]
     }
   }
 }
 ```
+
+Requires Node.js installed locally. `mcp-remote` auto-installs on first run via `npx`.
 
 ### Example queries
 
@@ -93,9 +96,7 @@ With the MCP server connected, an AI assistant can handle:
 
 - "What's happening in Singapore this weekend?"
 - "Any live music events this week?"
-- "Find food and drink events coming up"
-- "What's worth booking ahead in Singapore?"
-- "Search for events at the Esplanade"
+- "Are there any events worth booking ahead?"
 
 ## Tech stack
 
