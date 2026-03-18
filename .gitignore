@@ -57,3 +57,4 @@ test-screenshots/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+FEEDBACK.md
