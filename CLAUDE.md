@@ -6,7 +6,7 @@ Events curation website for Singapore. Single-page app showing ~10 curated event
 
 Brand name: jio (always lowercase)
 
-See @SPEC.md for full product requirements, data model, LLM prompts, and build plan.
+See @SPEC.md for full product requirements, data model, and LLM prompts.
 
 ## Tech Stack
 
@@ -79,7 +79,7 @@ When entering plan mode, always follow a maker-checker process:
 - Required env vars: TURSO_DATABASE_URL, TURSO_AUTH_TOKEN (for database access)
 - The LLM filter prompt in SPEC.md Section 6 is the source of truth for curation rules
 - Tags must come from the fixed vocabulary in SPEC.md Section 4 — don't invent new tags
-- Event blurbs are ONE sentence, max 120 characters
+- Event blurbs are ONE sentence, max 200 characters
 - Fonts: Space Grotesk (display) + Inter (body) from Google Fonts
 - Colors: bg #0A0A0F, text #E8E8ED, accent #F5A623, links #6B8AFF
 

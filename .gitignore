@@ -33,6 +33,7 @@ yarn-error.log*
 # env files
 .env
 .env.local
+.env.production
 .env.*.local
 
 # database
@@ -42,6 +43,9 @@ db/*.db-wal
 
 # playwright mcp
 .playwright-mcp/
+
+# claude code local settings (may contain credentials in permission rules)
+.claude/settings.local.json
 
 # qa screenshots
 test-screenshots/

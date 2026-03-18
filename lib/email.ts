@@ -8,9 +8,12 @@ import {
   createDigestRun,
   updateDigestRun,
   logEmailSend,
+  getPreviousDigestEventIds,
+  insertDigestEvents,
 } from "./db";
 import { formatDateRange, getDigestWindow } from "./dates";
 import { generateDigestIntro } from "./llm";
+import { classifyDigestEvents, type ClassifiedEvents } from "./digest-classify";
 
 export interface LlmPipelineStats {
   processed: number;
@@ -180,6 +183,23 @@ function renderTagPill(tag: string): string {
   return `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;border-radius:12px;font-size:11px;font-family:Inter,Arial,sans-serif;color:${color};background-color:${bgColor};border:1px solid ${color}40;">${tag}</span>`;
 }
 
+function renderLastChanceBadge(endDate: string): string {
+  const d = new Date(endDate.split("T")[0] + "T00:00:00");
+  const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+  return `<span style="display:inline-block;padding:2px 8px;margin:0 0 6px 0;border-radius:4px;font-size:11px;font-family:Inter,Arial,sans-serif;color:#F97316;background-color:#F9731615;border:1px solid #F9731640;font-weight:bold;letter-spacing:0.5px;">LAST CHANCE \u2014 closes ${dayName}</span><br/>`;
+}
+
+function renderCompactEvent(event: EventRow): string {
+  const endDate = event.event_date_end
+    ? formatDateShort(event.event_date_end.split("T")[0])
+    : "";
+  const titleHtml = event.source_url
+    ? `<a href="${event.source_url}" style="color:#9494A0;text-decoration:none;">${event.raw_title}</a>`
+    : `<span style="color:#9494A0;">${event.raw_title}</span>`;
+  const untilStr = endDate ? ` \u00B7 until ${endDate}` : "";
+  return `<tr><td style="padding:4px 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#6B6B78;">${titleHtml} \u00B7 ${event.venue}${untilStr}</td></tr>`;
+}
+
 function renderEvent(event: EventRow, isHeadsUp: boolean): string {
   const tags: string[] = event.tags ? JSON.parse(event.tags) : [];
   const tagHtml = tags.map(renderTagPill).join("");
@@ -205,7 +225,7 @@ function renderEvent(event: EventRow, isHeadsUp: boolean): string {
 }
 
 export function buildDigestHtml(
-  events: EventRow[],
+  classifiedEvents: ClassifiedEvents,
   headsUpEvents: EventRow[],
   siteUrl: string,
   unsubscribeToken: string,
@@ -216,7 +236,10 @@ export function buildDigestHtml(
     introHtml?: string;
   }
 ): string {
-  const grouped = groupEventsByDate(events, options?.weekStart);
+  // Main section: full cards for new + ending-soon events
+  const mainEvents = [...classifiedEvents.newEvents, ...classifiedEvents.endingSoonEvents];
+  const endingSoonIds = new Set(classifiedEvents.endingSoonEvents.map((e) => e.id));
+  const grouped = groupEventsByDate(mainEvents, options?.weekStart);
 
   let eventsHtml = "";
   let isFirst = true;
@@ -227,7 +250,22 @@ export function buildDigestHtml(
     isFirst = false;
     eventsHtml += `<tr><td style="padding:16px 0 8px 0;font-family:'Space Grotesk',Arial,sans-serif;font-size:13px;font-weight:bold;color:#F5A623;letter-spacing:1px;">${formatDateHeader(dateKey)}</td></tr>`;
     for (const event of dateEvents) {
-      eventsHtml += renderEvent(event, false);
+      const badge = endingSoonIds.has(event.id) && event.event_date_end
+        ? renderLastChanceBadge(event.event_date_end)
+        : "";
+      eventsHtml += badge
+        ? `<tr><td style="padding:0 0 0 0;">${badge}</td></tr>` + renderEvent(event, false)
+        : renderEvent(event, false);
+    }
+  }
+
+  // "STILL ON" section: compact rows for ongoing events
+  let ongoingHtml = "";
+  if (classifiedEvents.ongoingEvents.length > 0) {
+    ongoingHtml += `<tr><td style="padding:24px 0 4px 0;"><hr style="border:none;border-top:1px solid #1a1a24;"/></td></tr>`;
+    ongoingHtml += `<tr><td style="padding:16px 0 8px 0;font-family:'Space Grotesk',Arial,sans-serif;font-size:14px;font-weight:bold;color:#6B6B78;letter-spacing:1px;">STILL ON</td></tr>`;
+    for (const event of classifiedEvents.ongoingEvents) {
+      ongoingHtml += renderCompactEvent(event);
     }
   }
 
@@ -269,6 +307,7 @@ export function buildDigestHtml(
   <tr><td style="padding:8px 24px 0 24px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
       ${eventsHtml}
+      ${ongoingHtml}
       ${headsUpHtml}
     </table>
   </td></tr>
@@ -424,8 +463,12 @@ export async function sendDigestEmail(): Promise<{
     return { sent: 0, failed: 0, skipped: "No active subscribers", errors: [], digestRunId };
   }
 
+  // Classify events based on previous digest
+  const previousEventIds = await getPreviousDigestEventIds();
+  const classified = classifyDigestEvents(events, new Set(previousEventIds.keys()), endDate);
+
   // Generate AI intro + subject once before the subscriber loop
-  const digestIntro = await generateDigestIntro(events);
+  const digestIntro = await generateDigestIntro(classified);
   const subject = digestIntro?.subject
     ? `jio — ${digestIntro.subject}`
     : "jio — your weekend sorted";
@@ -440,6 +483,15 @@ export async function sendDigestEmail(): Promise<{
     skipped: null,
   });
 
+  // Record digest events before sending (so record exists even if sends crash)
+  const digestEventRows: { eventId: string; category: string }[] = [
+    ...classified.newEvents.map((e) => ({ eventId: e.id, category: "new" as const })),
+    ...classified.ongoingEvents.map((e) => ({ eventId: e.id, category: "ongoing" as const })),
+    ...classified.endingSoonEvents.map((e) => ({ eventId: e.id, category: "ending_soon" as const })),
+    ...headsUpEvents.map((e) => ({ eventId: e.id, category: "heads_up" as const })),
+  ];
+  await insertDigestEvents(digestRunId, digestEventRows);
+
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.FROM_EMAIL || "jio <onboarding@resend.dev>";
 
@@ -452,7 +504,7 @@ export async function sendDigestEmail(): Promise<{
     // Resend free tier allows 2 requests/second — pause between sends
     if (i > 0) await new Promise((r) => setTimeout(r, 600));
 
-    const html = buildDigestHtml(events, headsUpEvents, siteUrl, subscriber.unsubscribe_token, {
+    const html = buildDigestHtml(classified, headsUpEvents, siteUrl, subscriber.unsubscribe_token, {
       weekStart: startDate,
       startDate,
       endDate,

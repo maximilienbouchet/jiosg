@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
-import { getPublishedEvents, getClient, initializeDb } from "../../../lib/db";
+import { getPublishedEvents, getClient, initializeDb, getHeadsUpEvents, getEventsByTag, getEventById } from "../../../lib/db";
 import type { EventRow } from "../../../lib/db";
 import { addDays, formatDateHeader } from "../../../lib/dates";
+import { ALL_TAGS } from "../../../lib/tags";
 
 function getTodaySgt(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
@@ -196,6 +197,286 @@ const handler = createMcpHandler(
         }
       }
     );
+
+    server.tool(
+      "get_week_events",
+      "Get the main jio feed — curated events in Singapore for the next 7 rolling days from today. This is the core website experience. Optionally filter by category tag like 'live & loud', 'culture fix', 'taste test', 'touch grass', etc.",
+      {
+        category: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by tag, e.g. 'live & loud', 'culture fix', 'taste test'"
+          ),
+      },
+      async ({ category }) => {
+        try {
+          await initializeDb();
+
+          const todaySgt = getTodaySgt();
+          const endDate = addDays(todaySgt, 6);
+
+          let events: EventRow[];
+
+          if (category) {
+            const db = getClient();
+            const pattern = `%"${category}"%`;
+            const result = await db.execute({
+              sql: `SELECT * FROM events
+                    WHERE is_published = 1 AND llm_included = 1 AND is_duplicate = 0
+                      AND event_date_start >= ? AND event_date_start <= ?
+                      AND tags LIKE ?
+                    ORDER BY event_date_start ASC`,
+              args: [todaySgt, endDate, pattern],
+            });
+            events = result.rows as unknown as EventRow[];
+          } else {
+            const rows = await getPublishedEvents(todaySgt, endDate);
+            events = rows.filter(
+              (r) => r.llm_included === 1 && r.is_duplicate === 0
+            );
+          }
+
+          if (events.length === 0) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: category
+                    ? `No curated events matching "${category}" in the next 7 days.`
+                    : "Quiet week. Singapore's charging up.",
+                },
+              ],
+            };
+          }
+
+          const header = `${events.length} curated event${events.length === 1 ? "" : "s"} for ${formatDateHeader(todaySgt)} – ${formatDateHeader(endDate)}:\n`;
+          const text =
+            header + events.map((e) => formatEvent(e)).join("\n\n---\n\n");
+
+          return { content: [{ type: "text" as const, text }] };
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error fetching week events: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    server.tool(
+      "get_heads_up_events",
+      "Get 'Mark Your Calendar' events — notable upcoming events beyond the 7-day window that are worth booking now. These are LLM-selected highlights for forward planning.",
+      {
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(20)
+          .optional()
+          .describe("Max results (default 20)"),
+      },
+      async ({ limit }) => {
+        try {
+          await initializeDb();
+
+          const todaySgt = getTodaySgt();
+          const effectiveLimit = limit ?? 20;
+
+          const rows = await getHeadsUpEvents(todaySgt);
+          const events = rows
+            .filter((r) => r.llm_included === 1 && r.is_duplicate === 0)
+            .slice(0, effectiveLimit);
+
+          if (events.length === 0) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "No heads-up events to flag right now.",
+                },
+              ],
+            };
+          }
+
+          const header = `${events.length} event${events.length === 1 ? "" : "s"} worth booking ahead:\n`;
+          const text =
+            header + events.map((e) => formatEvent(e)).join("\n\n---\n\n");
+
+          return { content: [{ type: "text" as const, text }] };
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error fetching heads-up events: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    server.tool(
+      "get_events_by_tag",
+      `Browse upcoming curated events by tag. Valid tags: ${ALL_TAGS.join(", ")}`,
+      {
+        tag: z.string().describe("Tag to filter by, e.g. 'live & loud'"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe("Max results (default 10)"),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("Offset for pagination (default 0)"),
+      },
+      async ({ tag, limit, offset }) => {
+        try {
+          await initializeDb();
+
+          const normalizedTag = tag.toLowerCase();
+          if (!ALL_TAGS.includes(normalizedTag as typeof ALL_TAGS[number])) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Invalid tag "${tag}". Valid tags are: ${ALL_TAGS.join(", ")}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const todaySgt = getTodaySgt();
+          const effectiveLimit = limit ?? 10;
+          const effectiveOffset = offset ?? 0;
+
+          const rows = await getEventsByTag(
+            normalizedTag,
+            todaySgt,
+            effectiveLimit,
+            effectiveOffset
+          );
+          const events = rows.filter(
+            (r) => r.llm_included === 1 && r.is_duplicate === 0
+          );
+
+          if (events.length === 0) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `No upcoming events tagged "${normalizedTag}".`,
+                },
+              ],
+            };
+          }
+
+          const header = `${events.length} upcoming "${normalizedTag}" event${events.length === 1 ? "" : "s"}:\n`;
+          const text =
+            header + events.map((e) => formatEvent(e)).join("\n\n---\n\n");
+
+          return { content: [{ type: "text" as const, text }] };
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error fetching events by tag: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    server.tool(
+      "get_event_details",
+      "Get full details for a single event by its ID. Returns extended description, dates, venue, tags, and source link.",
+      {
+        event_id: z.string().describe("The event UUID"),
+      },
+      async ({ event_id }) => {
+        try {
+          await initializeDb();
+
+          const event = await getEventById(event_id);
+
+          if (
+            !event ||
+            event.is_published !== 1 ||
+            event.llm_included !== 1 ||
+            event.is_duplicate !== 0
+          ) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Event not found.",
+                },
+              ],
+            };
+          }
+
+          const date = formatDateHeader(event.event_date_start);
+          const endDate = event.event_date_end
+            ? ` – ${formatDateHeader(event.event_date_end)}`
+            : "";
+          const description =
+            event.enriched_description ||
+            event.blurb ||
+            (event.raw_description || "").slice(0, 2000);
+          let tags = "";
+          try {
+            const parsed = JSON.parse(event.tags || "[]");
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              tags = `Tags: ${parsed.join(", ")}`;
+            }
+          } catch {
+            // ignore malformed tags
+          }
+
+          const parts = [
+            event.raw_title,
+            `${date}${endDate}`,
+            event.venue,
+            "",
+            description,
+            tags,
+            "",
+            `Source: ${event.source}`,
+            event.source_url,
+          ].filter((line) => line !== undefined);
+
+          return {
+            content: [{ type: "text" as const, text: parts.join("\n") }],
+          };
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error fetching event details: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
   },
   { serverInfo: { name: "jio-events", version: "1.0.0" } },
   { basePath: "/api" }
@@ -213,7 +494,7 @@ async function GET(req: NextRequest, ctx: Record<string, unknown>) {
         name: "jio-events",
         version: "1.0.0",
         status: "ok",
-        tools: ["get_weekend_events", "search_events"],
+        tools: ["get_weekend_events", "search_events", "get_week_events", "get_heads_up_events", "get_events_by_tag", "get_event_details"],
         usage: 'Add to Claude Desktop config: { "mcpServers": { "jio-events": { "url": "https://<your-domain>/api/mcp" } } }',
       }),
       { status: 200, headers: { "content-type": "application/json" } }

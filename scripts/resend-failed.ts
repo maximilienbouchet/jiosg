@@ -7,10 +7,12 @@ import {
   getClient,
   getPublishedEvents,
   getTopHeadsUpEventsForDigest,
+  getPreviousDigestEventIds,
   logEmailSend,
 } from "../lib/db";
 import { buildDigestHtml } from "../lib/email";
 import { getDigestWindow } from "../lib/dates";
+import { classifyDigestEvents } from "../lib/digest-classify";
 
 async function main() {
   await initializeDb();
@@ -86,6 +88,10 @@ async function main() {
   console.log(`\nEvents for window ${startDate} to ${endDate}: ${events.length}`);
   console.log(`Heads-up events: ${headsUpEvents.length}`);
 
+  // Re-classify at retry time
+  const previousEventIds = await getPreviousDigestEventIds();
+  const classified = classifyDigestEvents(events, new Set(previousEventIds.keys()), endDate);
+
   const subject = latestRun.subject || "jio — your weekend sorted";
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.FROM_EMAIL || "jio <onboarding@resend.dev>";
@@ -97,7 +103,7 @@ async function main() {
     const subscriber = failed[i];
     if (i > 0) await new Promise((r) => setTimeout(r, 600));
 
-    const html = buildDigestHtml(events, headsUpEvents, siteUrl, subscriber.unsubscribe_token, {
+    const html = buildDigestHtml(classified, headsUpEvents, siteUrl, subscriber.unsubscribe_token, {
       weekStart: startDate,
       startDate,
       endDate,

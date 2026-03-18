@@ -1,5 +1,7 @@
 {
-  "name": "sg-event-curation",
+  "name": "jio-events",
+  "description": "Curated events in Singapore — automated scraping, LLM filtering, and a weekly digest for culturally curious people.",
+  "author": "Maximilien Bouchet",
   "version": "0.1.0",
   "private": true,
   "scripts": {

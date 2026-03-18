@@ -80,3 +80,13 @@ CREATE TABLE IF NOT EXISTS email_logs (
 
 CREATE INDEX IF NOT EXISTS idx_email_logs_run_id ON email_logs(digest_run_id);
 CREATE INDEX IF NOT EXISTS idx_email_logs_subscriber ON email_logs(subscriber_id);
+
+CREATE TABLE IF NOT EXISTS digest_events (
+  id TEXT PRIMARY KEY,
+  digest_run_id TEXT NOT NULL REFERENCES digest_runs(id),
+  event_id TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('new', 'ongoing', 'ending_soon', 'heads_up')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_digest_events_run_id ON digest_events(digest_run_id);
+CREATE INDEX IF NOT EXISTS idx_digest_events_event_id ON digest_events(event_id);

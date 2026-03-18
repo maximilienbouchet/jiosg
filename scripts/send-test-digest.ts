@@ -1,8 +1,9 @@
 import { Resend } from "resend";
-import { initializeDb, getPublishedEvents, getTopHeadsUpEventsForDigest } from "../lib/db";
+import { initializeDb, getPublishedEvents, getTopHeadsUpEventsForDigest, getPreviousDigestEventIds } from "../lib/db";
 import { buildDigestHtml } from "../lib/email";
 import { getDigestWindow } from "../lib/dates";
 import { generateDigestIntro } from "../lib/llm";
+import { classifyDigestEvents } from "../lib/digest-classify";
 
 async function main() {
   const to = process.argv[2];
@@ -32,10 +33,15 @@ async function main() {
     process.exit(0);
   }
 
+  // Classify events based on previous digest
+  const previousEventIds = await getPreviousDigestEventIds();
+  const classified = classifyDigestEvents(events, new Set(previousEventIds.keys()), endDate);
+
   console.log(`Found ${events.length} events (${startDate} → ${endDate}) + ${headsUpEvents.length} heads-up events`);
+  console.log(`  New: ${classified.newEvents.length}, Ongoing: ${classified.ongoingEvents.length}, Ending soon: ${classified.endingSoonEvents.length}`);
 
   // Generate AI intro + subject
-  const digestIntro = await generateDigestIntro(events);
+  const digestIntro = await generateDigestIntro(classified);
   const subject = digestIntro?.subject
     ? `[TEST] jio — ${digestIntro.subject}`
     : "[TEST] jio — your weekend sorted";
@@ -48,7 +54,7 @@ async function main() {
     console.log("AI intro generation failed, using fallback subject");
   }
 
-  const html = buildDigestHtml(events, headsUpEvents, siteUrl, "test-token", {
+  const html = buildDigestHtml(classified, headsUpEvents, siteUrl, "test-token", {
     weekStart: startDate,
     startDate,
     endDate,

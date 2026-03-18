@@ -197,17 +197,50 @@ export async function generateBlurbAndTags(
 }
 
 export async function generateDigestIntro(
-  events: EventRow[]
+  classified: {
+    newEvents: EventRow[];
+    ongoingEvents: EventRow[];
+    endingSoonEvents: EventRow[];
+  }
 ): Promise<{ intro: string; subject: string } | null> {
-  if (events.length === 0) return null;
+  const allEvents = [
+    ...classified.newEvents,
+    ...classified.ongoingEvents,
+    ...classified.endingSoonEvents,
+  ];
+  if (allEvents.length === 0) return null;
 
-  const eventSummaries = events
-    .slice(0, 15)
-    .map((e) => {
+  function formatEndDate(e: EventRow): string {
+    if (!e.event_date_end) return "";
+    const d = new Date(e.event_date_end.split("T")[0] + "T00:00:00");
+    return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+  }
+
+  const sections: string[] = [];
+
+  if (classified.newEvents.length > 0) {
+    const lines = classified.newEvents.slice(0, 10).map((e) => {
       const tags: string[] = e.tags ? JSON.parse(e.tags) : [];
       return `- ${e.raw_title} at ${e.venue} (${tags.join(", ")})`;
-    })
-    .join("\n");
+    });
+    sections.push(`NEW THIS WEEK:\n${lines.join("\n")}`);
+  }
+
+  if (classified.ongoingEvents.length > 0) {
+    const lines = classified.ongoingEvents.slice(0, 5).map((e) => {
+      const until = formatEndDate(e);
+      return `- ${e.raw_title} at ${e.venue}${until ? ` (until ${until})` : ""}`;
+    });
+    sections.push(`STILL RUNNING:\n${lines.join("\n")}`);
+  }
+
+  if (classified.endingSoonEvents.length > 0) {
+    const lines = classified.endingSoonEvents.slice(0, 5).map((e) => {
+      const closes = formatEndDate(e);
+      return `- ${e.raw_title} at ${e.venue}${closes ? ` (closes ${closes})` : ""}`;
+    });
+    sections.push(`ENDING SOON:\n${lines.join("\n")}`);
+  }
 
   try {
     const response = await anthropic.messages.create({
@@ -216,8 +249,10 @@ export async function generateDigestIntro(
       system: `You write weekly email intros for "jio", a curated events newsletter in Singapore for 20-40 year olds. Casual, warm, personality-driven — like texting a friend about what's on this weekend.
 
 Rules:
-- Write a 2-3 sentence intro paragraph highlighting the weekend's standouts. Be specific — name one or two events. No generic filler.
-- Also write a short email subject line (max 50 chars). It should have personality and mention a specific event name or draw. No emojis. Lowercase is fine.
+- Write a 2-3 sentence intro paragraph. Focus on what's NEW this week — name one or two new events specifically.
+- If there are ongoing events, briefly acknowledge them ("X is still on at Y until date").
+- If there are ending-soon events, nudge readers ("last chance to catch X before it closes Sunday").
+- Also write a short email subject line (max 50 chars). It should have personality and mention a specific new event name or draw. No emojis. Lowercase is fine.
 - The subject should make someone want to open the email.
 
 Respond with JSON only:
@@ -225,7 +260,7 @@ Respond with JSON only:
       messages: [
         {
           role: "user",
-          content: `This weekend's events:\n${eventSummaries}`,
+          content: sections.join("\n\n"),
         },
       ],
     });

@@ -676,3 +676,42 @@ export async function getDigestRunDetails(runId: string): Promise<{
     logs: logsResult.rows as unknown as EmailLogRow[],
   };
 }
+
+// --- Digest events (context-aware tracking) ---
+
+export async function getPreviousDigestEventIds(): Promise<Map<string, string>> {
+  const db = getClient();
+  // Find the most recent completed, non-skipped digest run
+  const runResult = await db.execute(
+    `SELECT id FROM digest_runs
+     WHERE completed_at IS NOT NULL AND skipped IS NULL
+     ORDER BY ran_at DESC LIMIT 1`
+  );
+  if (runResult.rows.length === 0) return new Map();
+
+  const runId = runResult.rows[0].id as string;
+  const eventsResult = await db.execute({
+    sql: "SELECT event_id, category FROM digest_events WHERE digest_run_id = ?",
+    args: [runId],
+  });
+
+  const map = new Map<string, string>();
+  for (const row of eventsResult.rows) {
+    map.set(row.event_id as string, row.category as string);
+  }
+  return map;
+}
+
+export async function insertDigestEvents(
+  digestRunId: string,
+  events: { eventId: string; category: string }[]
+): Promise<void> {
+  if (events.length === 0) return;
+  const db = getClient();
+  await db.batch(
+    events.map((e) => ({
+      sql: "INSERT INTO digest_events (id, digest_run_id, event_id, category) VALUES (?, ?, ?, ?)",
+      args: [crypto.randomUUID(), digestRunId, e.eventId, e.category],
+    }))
+  );
+}

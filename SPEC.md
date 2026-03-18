@@ -1,4 +1,4 @@
-# SPEC.md — Singapore Events Curation App
+# SPEC.md — jio: Singapore Events Curation App
 
 ## 1. Product Overview
 
@@ -22,7 +22,7 @@
 
 ---
 
-## 3. Feature Set (V1)
+## 3. Feature Set
 
 ### 3.1 Public Website — Single Page
 
@@ -30,66 +30,93 @@
 - **← → navigation arrows** to browse previous/future weeks
 - **Event cards** displaying:
   - Date (day of week + date, e.g. "SAT 22 FEB")
-  - Event title
+  - Event title (links to source/tickets, opens in new tab)
   - Venue name
-  - One-sentence blurb (LLM-generated)
-  - Tags as colored pills
-  - Link to source/tickets (opens in new tab)
-- **Empty state** when no events pass the filter: a single cheeky line like "Quiet week. Singapore's charging up." — not an apology, a personality moment
-- **Email subscribe** — single email input field, minimal. "Get the list every Thursday." Uses Resend free tier (3,000 emails/month)
-- **"Heads Up" section** — below the main event feed, above the subscribe form
-  - Shows max 3 events beyond the 7-day window that are worth booking now
-  - LLM-auto-selected during the blurb+tags pipeline (no admin involvement required)
-  - Each card shows the actual event date, title, venue, blurb, tags
-  - Cards have a left accent border to visually distinguish from the main feed
-  - Section header: "MARK YOUR CALENDAR" with subtitle "Coming up — worth booking now."
-  - Renders nothing when no heads-up events exist (no empty state)
-  - Static regardless of week navigation (always anchored to today + 7 days)
-  - Events auto-transition to the main feed when their date enters the 7-day window
+  - Date range for multi-day events
+  - One-sentence blurb (LLM-generated, max 200 chars)
+  - Tags as colored pills (1-3 per event)
+- **Empty state** when no events pass the filter: "Quiet week. Singapore's charging up." — not an apology, a personality moment
+- **Email subscribe** — single email input field. "Get the list every Thursday." Triggers a welcome email on signup.
 - **Footer** with one-liner about the project
 
 ### 3.2 Admin Panel
 
-- Password-protected route (/admin, simple hardcoded password or env var)
-- **Manual event submission:** paste a URL → backend fetches page content → LLM generates blurb + tags → preview → approve/reject/edit → publish
-- **Event moderation view:** see all events (scraped + manual), toggle visibility, edit blurbs/tags
-- **Event analytics:** basic event visibility tracking via admin panel
+Password-protected route (`/admin`) using `ADMIN_PASSWORD` env var. Five tabs:
+
+1. **Events** — Browse all events (scraped + manual), toggle `is_published` and `is_heads_up`, edit blurbs/tags/scores, view duplicate status
+2. **Add Event** — Paste a URL → backend fetches page → LLM generates blurb + tags + score → preview → approve/reject/edit → publish
+3. **Scraper Health** — Last 7 days of scraper run history with status indicators (OK / 0 events / Error) per source
+4. **Subscribers** — List active subscribers with subscription date
+5. **Email Logs** — Recent digest runs with per-subscriber delivery status (sent/failed), Resend message IDs
 
 ### 3.3 Scraping Pipeline
 
-- **4 scrapers** running daily at 3:00 AM SGT via cron:
-  1. **Eventbrite Singapore** — filter by Singapore location
-  2. **TheKallang.com.sg** — Sports Hub events calendar
-  3. **Esplanade.com** — performing arts, concerts, recitals
-  4. **SportPlus.sg** — running events, community sports, fitness events
-- Scrapers write raw events to database with source, scraped date, raw title, raw description, URL, venue, dates
-- **Cross-source deduplication:** After scraping and before LLM processing, an algorithmic dedup step (no LLM calls) fuzzy-matches events on title + date + venue across sources. Duplicates are marked in the DB (`is_duplicate`, `duplicate_of`) and skipped by the LLM pipeline. Admin can manually un-mark duplicates via the PATCH endpoint.
-- **Health monitoring:** Each scraper run is logged to the `scraper_runs` table (source, event count, error, timestamp). If any scraper returns 0 events or errors during a cron run, an alert email is sent to `ADMIN_EMAIL`. The admin panel includes a "Scraper Health" tab showing the last 7 days of run history with status indicators (OK / 0 events / Error) per source.
+**10 scrapers** running daily at 3:00 AM SGT via Vercel cron, all written in TypeScript using cheerio for HTML parsing:
 
-### 3.4 LLM Pipeline (two separate calls)
+| # | Source | File | What it scrapes |
+|---|--------|------|-----------------|
+| 1 | Eventbrite Singapore | `eventbrite.ts` | Filtered by Singapore location |
+| 2 | The Kallang (Sports Hub) | `thekallang.ts` | Sports Hub events calendar |
+| 3 | Esplanade | `esplanade.ts` | Performing arts, concerts, recitals |
+| 4 | SportPlus.sg | `sportplus.ts` | Running events, community sports |
+| 5 | Peatix | `peatix.ts` | Community events platform |
+| 6 | Fever | `fever.ts` | Entertainment & experiences |
+| 7 | Tessera | `tessera.ts` | Ticketing platform events |
+| 8 | SCAPE | `scape.ts` | Youth & community events |
+| 9 | SRT | `srt.ts` | Singapore arts & theatre |
+| 10 | BookMyShow | `bookmyshow.ts` | Ticketing platform (SG) |
 
-**Call 1 — Filter (Claude Haiku):**
-- Input: raw event title + description + venue + dates
-- System prompt encodes the filtering rules (see Section 6)
+**Pipeline flow:**
+1. Scrapers write raw events to database (source, title, description, URL, venue, dates)
+2. **URL-level deduplication:** `ON CONFLICT(source_url)` updates raw fields but skips re-processing
+3. **Cross-source deduplication:** Fuzzy-matches events on title + date + venue across sources (`lib/dedup.ts`). Duplicates are marked (`is_duplicate`, `duplicate_of`) and skipped by the LLM pipeline
+4. **Description enrichment:** Events with thin descriptions (< 100 chars) get their source URL fetched for richer context before LLM processing (`lib/enrich.ts`)
+5. LLM pipeline processes unfiltered events (see Section 3.4)
+
+**Health monitoring:** Each scraper run is logged to `scraper_runs` (source, event count, error, timestamp). If any scraper returns 0 events or errors, an alert email is sent to `ADMIN_EMAIL`.
+
+**Vercel timeout handling:** The cron route supports `?action=scrape` and `?action=process` to split scraping and LLM processing into separate requests, staying under Vercel's 60-second function timeout.
+
+### 3.4 LLM Pipeline
+
+Uses Claude Haiku (`claude-haiku-4-5-20251001`). Two separate calls per event, processed in batches of 5 with rate limiting.
+
+**Call 1 — Filter:**
+- Input: raw title + enriched description + venue + dates + source
+- Applies a strict "wow test" — can you identify WHAT specifically makes this event worth attending?
 - Output: `{ "include": true/false, "reason": "string" }`
-- Cost: ~$0.01 per 100 events
 
-**Call 2 — Blurb + Tags (Claude Haiku):**
-- Only runs on events that passed the filter
-- Input: raw event title + description + venue
-- System prompt encodes tone and tag vocabulary (see Section 6)
-- Output: `{ "blurb": "One sentence, max 200 chars", "tags": ["tag1", "tag2"] }`
-- Cost: ~$0.005 per event
+**Call 2 — Blurb + Tags + Score + Heads-up (only for included events):**
+- Input: raw title + enriched description + venue
+- Generates a one-sentence blurb (max 200 chars), assigns 1-3 tags, scores interest 1-10, and flags exceptional events as `heads_up`
+- Output: `{ "blurb": "...", "tags": [...], "heads_up": true/false, "score": 7 }`
+- **Score threshold:** Events scoring >= 7 are auto-published. Lower-scored events are included but not published (admin can override).
+- **Heads-up flag:** Reserved for genuinely exceptional events (notable performer + likely sellout + rare occurrence). Most events should NOT be flagged.
 
-**Total monthly cost estimate:** ~200 raw events/day × 30 days = 6,000 filter calls + ~300 blurb calls = well under $5/month on Haiku.
+See Section 6 for full prompt text.
 
-### 3.5 Email Digest
+### 3.5 Email System
 
-- Sent every Thursday at 6:00 PM SGT
-- Plain, clean HTML email — just the event list with links
-- Same content as the website but delivered
-- One-click unsubscribe
-- Provider: Resend (free tier: 3,000 emails/month, 100/day)
+**Weekly Digest** (Thursday 6:00 PM SGT):
+- **Context-aware classification:** Events are compared against the previous digest to categorize as:
+  - **New** — first appearance in digest
+  - **Ongoing** — multi-day events that appeared last week too (rendered as compact single-line rows in a "STILL ON" section)
+  - **Ending soon** — multi-day events closing within the digest window (full cards with orange "LAST CHANCE" badge)
+- **AI-generated intro:** LLM writes a 2-3 sentence intro paragraph and subject line, focusing on new events and nudging ending-soon ones
+- **Heads-up section:** Up to 3 top-scored events beyond the 7-day window, shown at the bottom
+- **Promotion rule:** If fewer than 3 new events, highest-scored ongoing events get promoted to full cards
+- One-click unsubscribe via unique token
+- Rate-limited sending (600ms between emails for Resend free tier)
+
+**Welcome Email** (on subscribe):
+- Immediate confirmation with top 2 heads-up events
+- Same dark-mode HTML styling as digest
+
+**Pipeline Report Email** (after daily cron):
+- Sent to `ADMIN_EMAIL` with scraper results + LLM pipeline stats
+- Flags issues: scraper errors, zero-event runs, LLM failures
+
+Provider: Resend (free tier: 3,000 emails/month, 100/day)
 
 ---
 
@@ -97,20 +124,20 @@
 
 Fun, short, personality-driven. The tag names are inspired by Pit Viper's approach to labeling — personality over corporate.
 
-| Tag | Used for | Color suggestion |
-|-----|----------|-----------------|
-| `live & loud` | Concerts, live music, DJ sets | Electric blue |
-| `culture fix` | Orchestra, ballet, opera, theatre | Deep purple |
-| `go see` | Museum exhibitions, art shows, gallery openings | Warm amber |
-| `game on` | Spectator sports, tournaments | Green |
-| `screen time` | Film screenings, film festivals | Soft red |
-| `taste test` | Wine events, food festivals, tastings, supper clubs | Burgundy |
-| `touch grass` | Running events, outdoor activities, active stuff | Lime green |
-| `free lah` | No cost events | Gold |
-| `last call` | Ending within 7 days | Orange/warning |
-| `bring someone` | Great for a date or bringing friends | Pink |
-| `once only` | One-time events, limited, rare appearances | White/silver |
-| `try lah` | Something outside comfort zone, unexpected | Teal |
+| Tag | Used for | Color |
+|-----|----------|-------|
+| `live & loud` | Concerts, live music, DJ sets | `#3B82F6` Electric blue |
+| `culture fix` | Orchestra, ballet, opera, theatre | `#9F67FF` Deep purple |
+| `go see` | Museum exhibitions, art shows, gallery openings | `#D97706` Warm amber |
+| `game on` | Spectator sports, tournaments | `#22C55E` Green |
+| `screen time` | Film screenings, film festivals | `#EF4444` Soft red |
+| `taste test` | Wine events, food festivals, tastings, supper clubs | `#F2568B` Burgundy-pink |
+| `touch grass` | Running events, outdoor activities, active stuff | `#84CC16` Lime green |
+| `free lah` | No cost events | `#EAB308` Gold |
+| `last call` | Ending within 7 days | `#F97316` Orange |
+| `bring someone` | Great for a date or bringing friends | `#EC4899` Pink |
+| `once only` | One-time events, limited, rare appearances | `#D1D5DB` Silver |
+| `try lah` | Something outside comfort zone, unexpected | `#14B8A6` Teal |
 
 Events get 1-3 tags max. LLM assigns them.
 
@@ -120,43 +147,74 @@ Events get 1-3 tags max. LLM assigns them.
 
 ```
 events
-├── id                  (UUID, primary key)
-├── source              (enum: eventbrite, thekallang, esplanade, sportplus, manual)
-├── source_url          (string, original URL)
-├── raw_title           (string)
-├── raw_description     (text, nullable)
-├── venue               (string)
-├── event_date_start    (datetime)
-├── event_date_end      (datetime, nullable)
-├── scraped_at          (datetime)
-├── llm_included        (boolean, nullable — null = not yet processed)
-├── llm_filter_reason   (string, nullable)
-├── blurb               (string, nullable — the one-sentence description)
-├── tags                (JSON array of strings, nullable)
-├── is_manually_added   (boolean, default false)
-├── is_published        (boolean, default false — true after LLM + approval)
-├── is_heads_up         (boolean, default false — LLM flag for notable events worth booking early)
-├── is_duplicate        (boolean, default false — algorithmically detected cross-source duplicate)
-├── duplicate_of        (UUID, nullable — references the canonical event this is a duplicate of)
-├── created_at          (datetime)
-├── updated_at          (datetime)
+├── id                   (TEXT, UUID primary key)
+├── source               (TEXT, one of: eventbrite, thekallang, esplanade, sportplus,
+│                          peatix, fever, tessera, scape, srt, bookmyshow, manual)
+├── source_url           (TEXT, unique — used for dedup on insert)
+├── raw_title            (TEXT)
+├── raw_description      (TEXT, nullable)
+├── venue                (TEXT)
+├── event_date_start     (TEXT, ISO date)
+├── event_date_end       (TEXT, nullable — set for multi-day events)
+├── scraped_at           (TEXT, datetime)
+├── enriched_description (TEXT, nullable — full page content fetched for thin descriptions)
+├── llm_included         (INTEGER, nullable — null = not yet processed, 0/1 after)
+├── llm_filter_reason    (TEXT, nullable)
+├── blurb                (TEXT, nullable — one-sentence description, max 200 chars)
+├── tags                 (TEXT, JSON array of strings, nullable)
+├── llm_score            (INTEGER, nullable — interest score 1-10)
+├── is_manually_added    (INTEGER, default 0)
+├── is_published         (INTEGER, default 0 — true when score >= 7 or admin approves)
+├── is_heads_up          (INTEGER, default 0 — LLM flag for exceptional events)
+├── is_duplicate         (INTEGER, default 0 — algorithmically detected cross-source duplicate)
+├── duplicate_of         (TEXT, nullable — references canonical event ID)
+├── created_at           (TEXT, datetime)
+├── updated_at           (TEXT, datetime)
 
 subscribers
-├── id                  (UUID, primary key)
-├── email               (string, unique)
-├── subscribed_at       (datetime)
-├── is_active           (boolean, default true)
-├── unsubscribe_token   (string, unique)
+├── id                   (TEXT, UUID primary key)
+├── email                (TEXT, unique)
+├── subscribed_at        (TEXT, datetime)
+├── is_active            (INTEGER, default 1)
+├── unsubscribe_token    (TEXT, unique)
 
 scraper_runs
-├── id                  (UUID, primary key)
-├── source              (string — scraper name e.g. "thekallang", "eventbrite")
-├── events_found        (integer, default 0 — number of new events scraped)
-├── error               (string, nullable — error message if scraper failed)
-├── ran_at              (datetime — when the run occurred)
-```
+├── id                   (TEXT, UUID primary key)
+├── source               (TEXT — scraper name)
+├── events_found         (INTEGER, default 0)
+├── error                (TEXT, nullable)
+├── ran_at               (TEXT, datetime)
 
-Deduplication: before inserting a scraped event, check if `source_url` already exists. If yes, update raw fields but don't re-run LLM.
+digest_runs
+├── id                   (TEXT, UUID primary key)
+├── ran_at               (TEXT, datetime)
+├── subject              (TEXT, nullable — AI-generated subject line)
+├── events_count         (INTEGER)
+├── heads_up_count       (INTEGER)
+├── subscribers_count    (INTEGER)
+├── total_sent           (INTEGER)
+├── total_failed         (INTEGER)
+├── skipped              (TEXT, nullable — reason if digest was skipped)
+├── completed_at         (TEXT, nullable — set when all sends finish)
+
+email_logs
+├── id                   (TEXT, UUID primary key)
+├── digest_run_id        (TEXT, FK → digest_runs)
+├── subscriber_id        (TEXT, nullable)
+├── email                (TEXT)
+├── subject              (TEXT, nullable)
+├── resend_message_id    (TEXT, nullable)
+├── status               (TEXT, "sent" or "failed")
+├── error                (TEXT, nullable)
+├── sent_at              (TEXT, datetime)
+
+digest_events
+├── id                   (TEXT, UUID primary key)
+├── digest_run_id        (TEXT, FK → digest_runs)
+├── event_id             (TEXT)
+├── category             (TEXT, one of: new, ongoing, ending_soon, heads_up)
+├── created_at           (TEXT, datetime)
+```
 
 ---
 
@@ -167,34 +225,40 @@ Deduplication: before inserting a scraped event, check if `source_url` already e
 ```
 You are a strict event curator for a website that recommends quality cultural and lifestyle events in Singapore to people aged 20-40.
 
-Your job: decide if an event should be INCLUDED or EXCLUDED.
+Your job: decide if an event should be INCLUDED or EXCLUDED. We show ~10 events per week — if it's a quiet week, show fewer; never pad.
+
+Apply "the wow test" — would this genuinely make someone say "oh, I want to go to that"? The key question: can you identify WHAT specifically makes this event worth attending (a named performer, a specific exhibition, a notable race, a unique experience)? If the description is too vague to answer that, EXCLUDE.
+
+When in doubt, EXCLUDE. We'd rather miss a decent event than show a mediocre one.
 
 INCLUDE events that are:
-- Performing arts: concerts, ballet, orchestra, opera, theatre, dance, comedy
+- Performing arts: concerts, ballet, orchestra, opera, theatre, dance, comedy — featuring named performers, specific productions, or limited runs
 - Exhibitions: museum shows, art exhibitions, gallery openings, photography shows
 - Sports: spectator sports events, tournaments, major races (as a viewer or participant)
-- Music: live music of any genre (classical, jazz, rock, rap, electronic, indie)
-- Film: screenings, film festivals, special cinema events
+- Music: live music of any genre — if there's a named act or a clear draw (festival, notable venue event)
+- Film: screenings, film festivals, special cinema events, director Q&As
 - Food & drink: wine tastings, food festivals, supper clubs, culinary experiences (not just restaurant openings or happy hours)
 - Cultural: author talks, book launches with notable authors, cultural festivals, heritage events
 - Active: notable runs, cycling events, outdoor festivals
 - Unique one-off experiences that a curious person would find interesting
 
 EXCLUDE events that are:
-- Corporate: conferences, networking events, "build your LinkedIn" type meetups, industry summits
+- Corporate: conferences, networking events, industry summits, LinkedIn-type meetups
 - Promotions: bar deals, 1-for-1 offers, happy hours, brand activations that are just ads
-- Recurring paid workshops: "make your own candle $200", "pottery class every Saturday" — things that are permanent commercial offerings, not events
+- Recurring paid workshops: pottery, candle-making, cooking classes — permanent commercial offerings, not events
 - Kids-only: events exclusively for children or families with young kids
 - Webinars or online-only events
 - MLM, crypto meetups, get-rich-quick seminars
-- Generic: "networking mixer", "professionals meetup", vague community gatherings with no specific draw
+- Generic: networking mixers, vague community gatherings with no specific draw
 - Religious services (cultural religious festivals ARE ok)
+- Routine recurring programming: weekly jazz nights, open mics, regular venue filler with no specific draw
+- Descriptions too vague to identify what makes the event worth attending
 
 Respond with JSON only:
 {"include": true/false, "reason": "brief explanation"}
 ```
 
-### Blurb + Tags Prompt (System)
+### Blurb + Tags + Score Prompt (System)
 
 ```
 You write one-sentence event descriptions for a curated events website in Singapore. Your audience is 20-40 year olds who are culturally curious.
@@ -209,8 +273,45 @@ Rules:
 Available tags (assign 1-3 that fit best):
 live & loud, culture fix, go see, game on, screen time, taste test, touch grass, free lah, last call, bring someone, once only, try lah
 
+Also decide if this event deserves a "heads up" flag — meaning it's genuinely exceptional and worth booking well in advance. This should be rare.
+
+Flag as heads_up ONLY if the event meets at least TWO of:
+- Notable performer, artist, or speaker with international or strong regional reputation
+- Likely to sell out or has hard capacity constraints (small venue, limited run)
+- Rare or one-time occurrence — not a recurring series
+- Genuinely unique experience that would be hard to replicate
+- Major cultural moment (landmark exhibition, premiere, festival highlight)
+
+Do NOT flag routine events as heads_up, even good ones.
+
+Rate this event's interest from 1-10:
+1-3: Routine, could happen any week — skip
+4-5: Decent but fairly generic
+6: Good event, clear draw — but not exceptional
+7: Would text a friend about it unprompted
+8-9: Would rearrange plans to attend
+10: Once-in-a-lifetime, unmissable
+
+Most events that passed our filter should land at 5-6. Reserve 7+ for events with genuinely notable performers, landmark exhibitions, or truly unique experiences. A 7 means you'd text a friend about it unprompted.
+
 Respond with JSON only:
-{"blurb": "your one sentence", "tags": ["tag1", "tag2"]}
+{"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}
+```
+
+### Digest Intro Prompt (System)
+
+```
+You write weekly email intros for "jio", a curated events newsletter in Singapore for 20-40 year olds. Casual, warm, personality-driven — like texting a friend about what's on this weekend.
+
+Rules:
+- Write a 2-3 sentence intro paragraph. Focus on what's NEW this week — name one or two new events specifically.
+- If there are ongoing events, briefly acknowledge them ("X is still on at Y until date").
+- If there are ending-soon events, nudge readers ("last chance to catch X before it closes Sunday").
+- Also write a short email subject line (max 50 chars). It should have personality and mention a specific new event name or draw. No emojis. Lowercase is fine.
+- The subject should make someone want to open the email.
+
+Respond with JSON only:
+{"intro": "your 2-3 sentences", "subject": "your subject line"}
 ```
 
 ---
@@ -219,13 +320,13 @@ Respond with JSON only:
 
 ### Visual Direction
 
-- **Dark mode** — background #0A0A0F (very dark navy-black), text #E8E8ED (warm off-white)
-- **One accent color** — electric amber/gold #F5A623 for tags, interactive elements, arrows
-- **Secondary accent** — soft blue #6B8AFF for links and hover states
+- **Dark mode** — background `#0A0A0F` (very dark navy-black), text `#E8E8ED` (warm off-white)
+- **One accent color** — electric amber/gold `#F5A623` for tags, interactive elements, arrows
+- **Secondary accent** — soft blue `#6B8AFF` for links and hover states
 - **Typography-driven design** — the type IS the design, minimal other decoration
 - **Fonts:**
-  - Display/headings: Space Grotesk (Google Fonts, free) — geometric, modern, slightly techy
-  - Body: Inter (Google Fonts, free) — clean, highly readable
+  - Display/headings: Space Grotesk (Google Fonts) — geometric, modern, slightly techy
+  - Body: Inter (Google Fonts) — clean, highly readable
 - **No images** — pure typography + color + spacing
 - **Micro-interactions:** smooth fade/slide when navigating weeks, subtle hover lift on cards, tag pills have slight glow on hover
 - **Mobile-first** — most users will visit on phone
@@ -250,14 +351,6 @@ Respond with JSON only:
 │  │ [game on] [bring someone]        │    │
 │  └─────────────────────────────────┘    │
 │                                         │
-│  ┌─────────────────────────────────┐    │
-│  │ Impressionist Exhibition         │    │
-│  │ National Gallery                 │    │
-│  │ Monet to Matisse — rare loans   │    │
-│  │ from Musée d'Orsay in SG.       │    │
-│  │ [go see] [bring someone]         │    │
-│  └─────────────────────────────────┘    │
-│                                         │
 │  SUN 23 FEB                             │  ← next date header
 │  ┌─────────────────────────────────┐    │
 │  │ ...                              │    │
@@ -267,18 +360,6 @@ Respond with JSON only:
 │                                         │
 │  Quiet week. Singapore's charging up.   │  ← empty state, centered, italic
 │  We'll email you when it gets good.     │
-│                                         │
-├─────────────────────────────────────────┤
-│                                         │
-│  ─── MARK YOUR CALENDAR ───            │
-│  Coming up — worth booking now.         │
-│                                         │
-│  ┃ SAT 15 MAR                           │
-│  ┃ Ottolenghi Live                      │
-│  ┃ National Library · Auditorium        │
-│  ┃ The chef talks fermentation —        │
-│  ┃ tickets selling fast.                │
-│  ┃ [taste test] [once only]             │
 │                                         │
 ├─────────────────────────────────────────┤
 │  Get the list every Thursday.           │
@@ -301,146 +382,113 @@ Respond with JSON only:
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| Frontend | Next.js (App Router) | SSR for SEO, simple routing, deploys free on Vercel |
-| Styling | Tailwind CSS | Fast, utility-first, dark mode built-in |
-| Database | SQLite via better-sqlite3 | Zero config, good enough for this scale, file-based |
-| Scrapers | Python (requests + BeautifulSoup) | Simple, well-documented, good for HTML parsing |
-| JS-heavy scraping | Playwright (Python) | For sites that need JS rendering (Esplanade if needed) |
-| LLM | Anthropic Claude Haiku API | Cheapest, fast, good enough for filter + blurb |
+| Framework | Next.js 14+ (App Router), TypeScript | SSR, simple routing, free Vercel deploy |
+| Styling | Tailwind CSS 4 | Fast, utility-first, dark mode built-in |
+| Database | Turso (libSQL cloud) via `@libsql/client` | Managed SQLite, no infra to maintain |
+| Scrapers | TypeScript + cheerio | Single language, runs as Vercel serverless functions |
+| LLM | Anthropic Claude Haiku (`claude-haiku-4-5-20251001`) | Cheap, fast, good enough for filter + blurb |
 | Email | Resend | Free tier (3k/mo), simple API, good deliverability |
-| Hosting (frontend) | Vercel | Free tier, auto-deploys from git |
-| Hosting (scrapers + cron) | Railway or DigitalOcean ($5/mo droplet) | Runs Python cron jobs |
+| Hosting | Vercel (frontend + API routes + cron) | Everything in one place, free tier |
 | Admin auth | Simple env var password check | No auth library needed for solo use |
+| Analytics | Vercel Analytics + Speed Insights | Built-in, zero config |
 
 ### Project Structure
 
 ```
 project-root/
-├── CLAUDE.md              ← Claude Code instructions
-├── SPEC.md                ← This file (product spec)
-├── README.md              ← Project overview
+├── CLAUDE.md                ← Claude Code instructions
+├── SPEC.md                  ← This file (product spec)
+├── LICENSE                  ← MIT license
 ├── package.json
 │
-├── app/                   ← Next.js App Router
-│   ├── page.tsx           ← Main single-page view
-│   ├── layout.tsx         ← Root layout (fonts, dark mode, meta)
+├── app/                     ← Next.js App Router
+│   ├── page.tsx             ← Main single-page view
+│   ├── layout.tsx           ← Root layout (fonts, dark mode, meta)
 │   ├── admin/
-│   │   └── page.tsx       ← Admin panel
+│   │   ├── page.tsx         ← Admin panel (tabbed)
+│   │   └── layout.tsx
 │   ├── api/
 │   │   ├── events/
-│   │   │   └── route.ts   ← GET events for date range
+│   │   │   └── route.ts     ← GET events for date range
 │   │   ├── subscribe/
-│   │   │   └── route.ts   ← POST email subscribe
+│   │   │   └── route.ts     ← POST email subscribe + welcome email
 │   │   ├── admin/
-│   │   │   ├── events/
-│   │   │   │   └── route.ts  ← CRUD events, manual submit
-│   │   │   └── process-url/
-│   │   │       └── route.ts  ← LLM process a pasted URL
+│   │   │   ├── auth/route.ts      ← Admin login/logout
+│   │   │   ├── events/route.ts    ← CRUD events
+│   │   │   ├── process-url/route.ts ← URL → LLM → preview
+│   │   │   └── data/route.ts      ← Stats, health, subscribers, logs
 │   │   └── cron/
-│   │       ├── scrape/
-│   │       │   └── route.ts  ← Trigger scraping (called by external cron)
+│   │       ├── scrape-and-process/
+│   │       │   └── route.ts  ← Scrape + LLM pipeline (supports ?action= splitting)
 │   │       └── email/
-│   │           └── route.ts  ← Trigger weekly email (called by external cron)
+│   │           └── route.ts  ← Trigger weekly digest
 │   └── unsubscribe/
-│       └── page.tsx       ← Unsubscribe handler
+│       └── page.tsx          ← Unsubscribe handler
 │
 ├── lib/
-│   ├── db.ts              ← SQLite connection + queries
-│   ├── llm.ts             ← Claude API calls (filter + blurb)
-│   ├── email.ts           ← Resend integration
+│   ├── db.ts                ← Turso client, queries, migrations
+│   ├── llm.ts               ← Claude API calls (filter + blurb + digest intro)
+│   ├── email.ts             ← Resend: digest, welcome, pipeline report emails
+│   ├── dates.ts             ← Date utilities, digest window calculation
+│   ├── tags.ts              ← Tag vocabulary and color definitions
+│   ├── enrich.ts            ← Fetch full event pages for thin descriptions
+│   ├── dedup.ts             ← Cross-source fuzzy deduplication
+│   ├── digest-classify.ts   ← Context-aware event classification (new/ongoing/ending)
+│   ├── admin-auth.ts        ← Cookie-based admin session
+│   ├── cron-auth.ts         ← CRON_SECRET validation
+│   ├── utils.ts             ← cn() helper (clsx + tailwind-merge)
 │   └── scrapers/
-│       ├── eventbrite.ts   ← Eventbrite scraper
-│       ├── thekallang.ts   ← The Kallang scraper
-│       ├── esplanade.ts    ← Esplanade scraper
-│       ├── sportplus.ts    ← SportPlus scraper
-│       └── index.ts        ← Scraper orchestrator
+│       ├── index.ts          ← Scraper orchestrator
+│       ├── eventbrite.ts
+│       ├── thekallang.ts
+│       ├── esplanade.ts
+│       ├── sportplus.ts
+│       ├── peatix.ts
+│       ├── fever.ts
+│       ├── tessera.ts
+│       ├── scape.ts
+│       ├── srt.ts
+│       └── bookmyshow.ts
 │
 ├── components/
 │   ├── EventCard.tsx
+│   ├── EventsView.tsx
 │   ├── WeekNav.tsx
 │   ├── SubscribeForm.tsx
-│   └── EmptyState.tsx
+│   ├── EmptyState.tsx
+│   ├── BackgroundEffect.tsx
+│   ├── MouseGlow.tsx
+│   └── LayoutEffects.tsx
 │
 ├── db/
-│   ├── schema.sql         ← SQLite schema
-│   └── events.db          ← SQLite database file (gitignored)
+│   └── schema.sql            ← Database schema (applied via initializeDb)
 │
 └── scripts/
-    └── seed.ts            ← Seed database with test events
+    ├── seed.ts                ← Seed database with test events
+    ├── scrape.ts              ← Run scrapers manually
+    ├── send-test-digest.ts    ← Send test digest to an email
+    ├── send-test-welcome.ts   ← Send test welcome email
+    ├── send-welcome-existing.ts ← Bulk-send welcome to existing subscribers
+    ├── email-preview.ts       ← Generate digest HTML preview
+    ├── welcome-email-preview.ts ← Generate welcome HTML preview
+    ├── reprocess-blurbs.ts    ← Re-run LLM blurb generation
+    ├── reprocess-excluded.ts  ← Re-filter excluded events
+    ├── resend-failed.ts       ← Retry failed email sends
+    └── inspect-dedup.ts       ← Debug deduplication decisions
 ```
-
-Note: Scrapers are written in TypeScript (not Python) to keep a single language in the monorepo. Use `cheerio` instead of BeautifulSoup for HTML parsing. This simplifies deployment — everything runs on Vercel (including API routes as serverless functions) and no separate Python server is needed.
 
 ---
 
 ## 9. Environment Variables
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...          # Claude API key
-RESEND_API_KEY=re_...                 # Resend email API key
-ADMIN_PASSWORD=your-secret-password    # Admin panel access
-CRON_SECRET=your-cron-secret          # Protects cron API routes
-SITE_URL=https://your-domain.com      # For email links
+TURSO_DATABASE_URL=libsql://your-db.turso.io  # Turso database URL
+TURSO_AUTH_TOKEN=your-turso-auth-token          # Turso auth token
+ANTHROPIC_API_KEY=sk-ant-...                    # Claude API key
+RESEND_API_KEY=re_...                           # Resend email API key
+FROM_EMAIL=jio <hello@yourdomain.com>           # Email "from" address (with display name)
+ADMIN_EMAIL=your@email.com                      # Receives pipeline alert emails
+ADMIN_PASSWORD=your-secret-password             # Admin panel access
+CRON_SECRET=your-cron-secret                    # Protects cron API routes
+SITE_URL=https://your-domain.com                # Public site URL (used in email links)
 ```
-
----
-
-## 10. Build Plan — Weekend-by-Weekend
-
-### Weekend 1: Foundation + One Scraper + Frontend Shell
-
-**Goal:** A working website that shows events from one source with LLM filtering.
-
-Session 1 (Sat morning): Project setup
-- Initialize Next.js project with Tailwind + TypeScript
-- Set up SQLite database with schema
-- Create CLAUDE.md
-- Get basic dark-mode layout rendering with placeholder data
-
-Session 2 (Sat afternoon): First scraper + LLM pipeline
-- Build TheKallang scraper (simplest source, static HTML)
-- Wire up Claude Haiku API for filter + blurb
-- Test end-to-end: scrape → filter → blurb → database
-
-Session 3 (Sun morning): Frontend
-- EventCard component with real data from DB
-- Week navigation (← →) with rolling 7-day window
-- Empty state
-- Mobile responsive
-
-Session 4 (Sun afternoon): Polish + Deploy
-- Basic styling polish
-- Deploy to Vercel
-- Test on mobile
-
-**Deliverable:** Live website showing Kallang events, filtered and curated. ~60% of final product.
-
-### Weekend 2: More Scrapers + Admin + Email
-
-Session 5: Add Eventbrite + Esplanade scrapers
-Session 6: Add SportPlus scraper + deduplication logic
-Session 7: Admin panel (URL paste → LLM → publish)
-Session 8: Email subscribe + Thursday digest
-
-**Deliverable:** Full V1 with 4 scrapers, admin panel, email digest.
-
-### Weekend 3: Polish + Distribution
-
-Session 9: Frontend polish — animations, micro-interactions, tag colors
-Session 10: Scraper health checks + alerting
-Session 11: SEO basics (meta tags, OG image, sitemap)
-Session 12: Share on Reddit r/singapore, LinkedIn, WhatsApp groups
-
-**Note:** "Heads Up" section should be implemented after the core 7-day flow is solid — late Weekend 3 or as a fast follow.
-
-**Deliverable:** Polished product ready for real users.
-
----
-
-## 11. Success Metrics (3-month horizon)
-
-- 30 returning weekly visitors
-- Positive qualitative feedback from at least 10 people
-- You personally discover 2+ events per month you wouldn't have found otherwise
-- Scrapers running reliably with <1 break per month
-- Email list of 50+ subscribers
