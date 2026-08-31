@@ -4,10 +4,12 @@ import { SubscribeForm } from "../components/SubscribeForm";
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
-      <header>
-        <div className="max-w-[640px] mx-auto px-4 py-4 flex items-center justify-between">
+      {/* Sticky masthead: needs an explicit translucent bg — backdrop-blur
+          over a fully transparent header blurs nothing. */}
+      <header className="sticky top-0 z-40 bg-[color-mix(in_srgb,var(--color-bg)_72%,transparent)] backdrop-blur-md">
+        <div className="max-w-[640px] mx-auto px-4 py-4 flex items-baseline justify-between">
           <a href="/" className="cursor-pointer">
-            <h1 className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold tracking-tight">
+            <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold tracking-tight leading-none">
               <span
                 className="bg-clip-text text-transparent animate-gradient-shift bg-[length:200%_auto]
                   motion-reduce:animate-none motion-reduce:text-[var(--color-text)]"
@@ -17,6 +19,7 @@ export default function Home() {
               >
                 jio
               </span>
+              <span className="text-[var(--color-accent)]" aria-hidden="true">.</span>
             </h1>
           </a>
           <span id="header-subtitle" className="hidden sm:block"></span>

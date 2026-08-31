@@ -6,7 +6,7 @@ import { WeekNav } from "./WeekNav";
 import { EventCard } from "./EventCard";
 import { EmptyState } from "./EmptyState";
 import { TAG_COLORS, TAG_DESCRIPTIONS } from "../lib/tags";
-import { addDays, getMonday, formatDateHeader } from "../lib/dates";
+import { addDays, getMonday } from "../lib/dates";
 
 interface EventData {
   id: string;
@@ -17,9 +17,51 @@ interface EventData {
   sourceUrl: string;
   eventDateStart: string;
   eventDateEnd: string | null;
+  /** Editorial rank from the nightly pass; 1 = pick of the week. */
+  rank?: number;
 }
 
 const TAG_PAGE_SIZE = 20;
+
+/**
+ * Editorial date architecture: small-caps weekday, oversized numeral,
+ * small-caps month, hairline rule — weekends tinted, today flagged.
+ */
+function DayHeader({ dateKey, todaySgt }: { dateKey: string; todaySgt: string }) {
+  const d = new Date(dateKey + "T00:00:00");
+  const weekday = d.toLocaleDateString("en-SG", { weekday: "short" }).toUpperCase();
+  const day = d.toLocaleDateString("en-SG", { day: "2-digit" });
+  const month = d.toLocaleDateString("en-SG", { month: "short" }).toUpperCase();
+  const isToday = dateKey === todaySgt;
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+  return (
+    <h2
+      aria-current={isToday ? "date" : undefined}
+      className="flex items-baseline gap-3 mb-5"
+    >
+      <span
+        className={`font-[family-name:var(--font-space-grotesk)] text-xs font-semibold tracking-[0.25em] ${
+          isWeekend ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"
+        }`}
+      >
+        {weekday}
+      </span>
+      <span className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold leading-none tracking-tight tabular-nums">
+        {day}
+      </span>
+      <span className="font-[family-name:var(--font-space-grotesk)] text-xs font-semibold tracking-[0.25em] text-[var(--color-muted)]">
+        {month}
+      </span>
+      <span aria-hidden="true" className="flex-1 h-px self-center bg-white/[0.07]" />
+      {isToday && (
+        <span className="self-center text-[10px] font-semibold tracking-[0.2em] text-[var(--color-accent)] border border-[var(--color-accent)]/40 rounded-full px-2 py-0.5">
+          TODAY
+        </span>
+      )}
+    </h2>
+  );
+}
 
 export function EventsView() {
   const todaySgt = useMemo(() => {
@@ -226,10 +268,8 @@ export function EventsView() {
           <div className="space-y-8">
             {sortedDates.map((dateKey) => (
               <div key={dateKey}>
-                <h2 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-sm tracking-widest text-[var(--color-accent)] mb-4">
-                  {formatDateHeader(dateKey)}
-                </h2>
-                <div className="space-y-4">
+                <DayHeader dateKey={dateKey} todaySgt={todaySgt} />
+                <div>
                   {grouped[dateKey].map((event) => (
                     <EventCard
                       key={event.id}
@@ -302,10 +342,8 @@ export function EventsView() {
               let globalCardIndex = 0;
               return sortedDates.map((dateKey) => (
                 <div key={dateKey}>
-                  <h2 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-sm tracking-widest text-[var(--color-accent)] mb-4">
-                    {formatDateHeader(dateKey)}
-                  </h2>
-                  <div className="space-y-4">
+                  <DayHeader dateKey={dateKey} todaySgt={todaySgt} />
+                  <div>
                     {grouped[dateKey].map((event) => {
                       const delay = globalCardIndex * 80;
                       globalCardIndex++;
