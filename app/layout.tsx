@@ -19,7 +19,11 @@ export const metadata: Metadata = {
   title: "jio — Curated things to do in Singapore",
   description:
     "~10 curated events happening in Singapore this week. For people who are tired of digging through noise.",
-  metadataBase: new URL(process.env.SITE_URL || "https://jiosg.app"),
+  // Guard against a scheme-less SITE_URL — new URL() would throw at build time
+  // and fail the whole deploy.
+  metadataBase: new URL(
+    process.env.SITE_URL?.startsWith("http") ? process.env.SITE_URL : "https://jiosg.app"
+  ),
   openGraph: {
     title: "jio — Curated things to do in Singapore",
     description:
