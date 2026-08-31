@@ -49,7 +49,7 @@ INCLUDE events that are:
 - Exhibitions: museum shows, art exhibitions, gallery openings, photography shows
 - Sports: spectator sports events, tournaments, major races (as a viewer or participant)
 - Music: live music of any genre — if there's a named act or a clear draw (festival, notable venue event)
-- Film: screenings, film festivals, special cinema events, director Q&As
+- Film: repertory and special screenings — restorations, retrospectives, film festivals, premieres, director Q&As, one-off film events with a specific draw
 - Food & drink: wine tastings, food festivals, supper clubs, culinary experiences (not just restaurant openings or happy hours)
 - Cultural: author talks, book launches with notable authors, cultural festivals, heritage events
 - Active: notable runs, cycling events, outdoor festivals
@@ -65,6 +65,7 @@ EXCLUDE events that are:
 - Generic: networking mixers, vague community gatherings with no specific draw
 - Religious services (cultural religious festivals ARE ok)
 - Routine recurring programming: weekly jazz nights, open mics, regular venue filler with no specific draw
+- Ordinary cinema showtimes: a current release on a regular run — a film you could catch any week is venue programming, not an event
 - Descriptions too vague to identify what makes the event worth attending
 
 Respond with JSON only:
@@ -102,6 +103,8 @@ Rate this event's interest from 1-10:
 10: Once-in-a-lifetime, unmissable
 
 Most events that passed our filter should land at 5-6. Reserve 7+ for events with genuinely notable performers, landmark exhibitions, or truly unique experiences. A 7 means you'd text a friend about it unprompted.
+
+For film screenings: a landmark restoration, festival premiere, or director Q&A can reach 7-8; an ordinary screening — even of a good film — is a 5-6.
 
 Respond with JSON only:
 {"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}`;

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { getPublishedEvents, getClient, initializeDb, getHeadsUpEvents, getEventsByTag, getEventById } from "../../../lib/db";
+import { selectWindowEvents } from "../../../lib/select-events";
 import type { EventRow } from "../../../lib/db";
 import { addDays, formatDateHeader } from "../../../lib/dates";
 import { ALL_TAGS } from "../../../lib/tags";
@@ -91,7 +92,8 @@ const handler = createMcpHandler(
             events = result.rows as unknown as EventRow[];
           } else {
             const rows = await getPublishedEvents(friday, sunday);
-            events = rows.filter(
+            // Same curated selection as the public site (~12/window cap).
+            events = selectWindowEvents(rows, friday).filter(
               (r) => r.llm_included === 1 && r.is_duplicate === 0
             );
           }
@@ -232,7 +234,8 @@ const handler = createMcpHandler(
             events = result.rows as unknown as EventRow[];
           } else {
             const rows = await getPublishedEvents(todaySgt, endDate);
-            events = rows.filter(
+            // Same curated selection as the public site (~12/window cap).
+            events = selectWindowEvents(rows, todaySgt).filter(
               (r) => r.llm_included === 1 && r.is_duplicate === 0
             );
           }

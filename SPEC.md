@@ -27,6 +27,7 @@
 ### 3.1 Public Website — Single Page
 
 - **Rolling 7-day window** from today. Always shows "next 7 days" regardless of when you visit
+- **Window selection** (`lib/select-events.ts`): publishing (score >= 7) decides what is *eligible*; at display time each window shows at most ~12 events, ranked by score then heads-up flag, with per-source (max 4) and ongoing-event (max 4) caps so no single venue's programme or long-running exhibition dominates. Quiet weeks simply show fewer — never pad. Applies to the public site and the MCP week/weekend tools.
 - **← → navigation arrows** to browse previous/future weeks
 - **Event cards** displaying:
   - Date (day of week + date, e.g. "SAT 22 FEB")
@@ -51,7 +52,7 @@ Password-protected route (`/admin`) using `ADMIN_PASSWORD` env var. Five tabs:
 
 ### 3.3 Scraping Pipeline
 
-**10 scrapers** running daily at 3:00 AM SGT via Vercel cron, all written in TypeScript using cheerio for HTML parsing:
+**11 scrapers** running daily at 3:00 AM SGT via Vercel cron, all written in TypeScript using cheerio for HTML parsing:
 
 | # | Source | File | What it scrapes |
 |---|--------|------|-----------------|
@@ -65,6 +66,7 @@ Password-protected route (`/admin`) using `ADMIN_PASSWORD` env var. Five tabs:
 | 8 | SCAPE | `scape.ts` | Youth & community events |
 | 9 | SRT | `srt.ts` | Singapore arts & theatre |
 | 10 | BookMyShow | `bookmyshow.ts` | Ticketing platform (SG) |
+| 11 | Filmhouse | `filmhouse.ts` | Independent cinema (ex-Projector space) — repertory & special screenings |
 
 **Pipeline flow:**
 1. Scrapers write raw events to database (source, title, description, URL, venue, dates)
@@ -149,7 +151,7 @@ Events get 1-3 tags max. LLM assigns them.
 events
 ├── id                   (TEXT, UUID primary key)
 ├── source               (TEXT, one of: eventbrite, thekallang, esplanade, sportplus,
-│                          peatix, fever, tessera, scape, srt, bookmyshow, manual)
+│                          peatix, fever, tessera, scape, srt, bookmyshow, filmhouse, manual)
 ├── source_url           (TEXT, unique — used for dedup on insert)
 ├── raw_title            (TEXT)
 ├── raw_description      (TEXT, nullable)
@@ -236,7 +238,7 @@ INCLUDE events that are:
 - Exhibitions: museum shows, art exhibitions, gallery openings, photography shows
 - Sports: spectator sports events, tournaments, major races (as a viewer or participant)
 - Music: live music of any genre — if there's a named act or a clear draw (festival, notable venue event)
-- Film: screenings, film festivals, special cinema events, director Q&As
+- Film: repertory and special screenings — restorations, retrospectives, film festivals, premieres, director Q&As, one-off film events with a specific draw
 - Food & drink: wine tastings, food festivals, supper clubs, culinary experiences (not just restaurant openings or happy hours)
 - Cultural: author talks, book launches with notable authors, cultural festivals, heritage events
 - Active: notable runs, cycling events, outdoor festivals
@@ -252,6 +254,7 @@ EXCLUDE events that are:
 - Generic: networking mixers, vague community gatherings with no specific draw
 - Religious services (cultural religious festivals ARE ok)
 - Routine recurring programming: weekly jazz nights, open mics, regular venue filler with no specific draw
+- Ordinary cinema showtimes: a current release on a regular run — a film you could catch any week is venue programming, not an event
 - Descriptions too vague to identify what makes the event worth attending
 
 Respond with JSON only:
@@ -293,6 +296,8 @@ Rate this event's interest from 1-10:
 10: Once-in-a-lifetime, unmissable
 
 Most events that passed our filter should land at 5-6. Reserve 7+ for events with genuinely notable performers, landmark exhibitions, or truly unique experiences. A 7 means you'd text a friend about it unprompted.
+
+For film screenings: a landmark restoration, festival premiere, or director Q&A can reach 7-8; an ordinary screening — even of a good film — is a 5-6.
 
 Respond with JSON only:
 {"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}
@@ -433,6 +438,7 @@ project-root/
 │   ├── tags.ts              ← Tag vocabulary and color definitions
 │   ├── enrich.ts            ← Fetch full event pages for thin descriptions
 │   ├── dedup.ts             ← Cross-source fuzzy deduplication
+│   ├── select-events.ts     ← Per-window display selection (~12 cap, source/ongoing limits)
 │   ├── digest-classify.ts   ← Context-aware event classification (new/ongoing/ending)
 │   ├── admin-auth.ts        ← Cookie-based admin session
 │   ├── cron-auth.ts         ← CRON_SECRET validation
@@ -448,7 +454,8 @@ project-root/
 │       ├── tessera.ts
 │       ├── scape.ts
 │       ├── srt.ts
-│       └── bookmyshow.ts
+│       ├── bookmyshow.ts
+│       └── filmhouse.ts
 │
 ├── components/
 │   ├── EventCard.tsx
@@ -474,7 +481,8 @@ project-root/
     ├── reprocess-blurbs.ts    ← Re-run LLM blurb generation
     ├── reprocess-excluded.ts  ← Re-filter excluded events
     ├── resend-failed.ts       ← Retry failed email sends
-    └── inspect-dedup.ts       ← Debug deduplication decisions
+    ├── inspect-dedup.ts       ← Debug deduplication decisions
+    └── dedup-backfill.ts      ← Retroactively dedup already-processed events
 ```
 
 ---

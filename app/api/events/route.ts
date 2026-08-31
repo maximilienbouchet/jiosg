@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublishedEvents, getEventsByTag, initializeDb } from "../../../lib/db";
+import { selectWindowEvents } from "../../../lib/select-events";
 import { ALL_TAGS } from "../../../lib/tags";
 
 // GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing start or end parameter" }, { status: 400 });
   }
 
-  const rows = await getPublishedEvents(start, end);
+  const rows = selectWindowEvents(await getPublishedEvents(start, end), start);
 
   const events = rows.map((row) => ({
     id: row.id,

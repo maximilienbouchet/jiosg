@@ -108,15 +108,24 @@ export function datesOverlap(eventA: EventRow, eventB: EventRow): boolean {
 // --- Composite check ---
 
 /**
- * Both titles reduce to the same set of 3+ significant words — distinctive
- * enough that a same-day match is the same event regardless of venue string.
+ * Both titles reduce to exactly the same set of significant words. Used for the
+ * same-source gate, where any exact match counts — a site restructure can list
+ * one show under two URLs, including one-word titles ("Tortoise").
  */
-function titlesAreIdentical(titleA: string, titleB: string): boolean {
+function normalizedTitlesEqual(titleA: string, titleB: string): boolean {
   const wordsA = normalizeTitle(titleA);
   const wordsB = normalizeTitle(titleB);
-  if (wordsA.length < 3 || wordsA.length !== wordsB.length) return false;
+  if (wordsA.length === 0 || wordsA.length !== wordsB.length) return false;
   const setB = new Set(wordsB);
   return wordsA.every((w) => setB.has(w));
+}
+
+/**
+ * Same as above but demands 3+ significant words — distinctive enough that a
+ * same-day match is the same event regardless of venue string.
+ */
+function titlesAreIdentical(titleA: string, titleB: string): boolean {
+  return normalizeTitle(titleA).length >= 3 && normalizedTitlesEqual(titleA, titleB);
 }
 
 export function eventsAreDuplicates(a: EventRow, b: EventRow): boolean {
@@ -126,9 +135,10 @@ export function eventsAreDuplicates(a: EventRow, b: EventRow): boolean {
   // Fuzzy title matching exists to absorb how *different* sources word the same
   // event. Within one source, near-misses are almost always genuinely different
   // events from the same programme ("...Acrylic Painting" vs "...Watercolour
-  // Painting"), so demand an exact title match there. Exact re-listings, the
-  // real same-source duplicate, still qualify.
-  if (a.source === b.source && !titlesAreIdentical(a.raw_title, b.raw_title)) {
+  // Painting"), so demand an exact title match there. Exact re-listings — the
+  // real same-source duplicate, e.g. one show under an old and a new URL after
+  // a site restructure — still qualify.
+  if (a.source === b.source && !normalizedTitlesEqual(a.raw_title, b.raw_title)) {
     return false;
   }
 

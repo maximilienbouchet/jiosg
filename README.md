@@ -14,7 +14,7 @@ jio scrapes the sources, runs every event through an LLM filter calibrated for c
 
 ### Scraping pipeline
 
-10 scrapers run daily, pulling events from:
+11 scrapers run daily, pulling events from:
 
 - **Eventbrite** — general events, Singapore location filter
 - **Esplanade** — performing arts, concerts, recitals
@@ -26,6 +26,7 @@ jio scrapes the sources, runs every event through an LLM filter calibrated for c
 - **SCAPE** — urban culture and design
 - **SRT** — Singapore Repertory Theatre
 - **BookMyShow** — concerts, shows, cinema
+- **Filmhouse** — independent cinema, repertory & special screenings
 
 Scrapers run in parallel as Vercel serverless functions, triggered by cron. Each run is logged to a `scraper_runs` table with event counts and errors. If any scraper returns zero events, an alert email goes to the admin.
 
@@ -121,7 +122,7 @@ With the MCP server connected, an AI assistant can handle:
 
 ## Status
 
-Live and running daily at [jiosg.app](https://jiosg.app). ~20 email subscribers and growing. 10 scrapers operational, processing ~200 events/day through the LLM pipeline.
+Live and running daily at [jiosg.app](https://jiosg.app). ~20 email subscribers and growing. 11 scrapers operational, processing ~200 events/day through the LLM pipeline.
 
 ## License
 
