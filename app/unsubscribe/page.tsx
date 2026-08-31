@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { initializeDb, deactivateSubscriber } from "../../lib/db";
 
 export default async function UnsubscribePage({
@@ -38,12 +39,12 @@ export default async function UnsubscribePage({
           {heading}
         </h1>
         <p className="mt-4 text-[var(--color-muted)]">{body}</p>
-        <a
+        <Link
           href="/"
           className="mt-8 inline-block text-sm text-[var(--color-link)] hover:underline"
         >
           Back to jio
-        </a>
+        </Link>
       </div>
     </main>
   );

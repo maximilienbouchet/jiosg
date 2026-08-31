@@ -24,6 +24,28 @@ interface EventData {
 
 const TAG_PAGE_SIZE = 20;
 
+/** Three ghost rows echoing the event-row anatomy while the week loads. */
+function LoadingSkeleton() {
+  return (
+    <div className="mt-6 animate-pulse motion-reduce:animate-none" aria-hidden="true">
+      <div className="flex items-baseline gap-3 mb-5">
+        <span className="h-3 w-10 rounded bg-white/[0.06]" />
+        <span className="h-8 w-12 rounded bg-white/[0.08]" />
+        <span className="h-3 w-10 rounded bg-white/[0.06]" />
+        <span className="flex-1 h-px self-center bg-white/[0.05]" />
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="py-5 border-b border-white/[0.05]">
+          <div className="h-5 w-3/4 rounded bg-white/[0.08]" />
+          <div className="mt-2 h-3 w-1/3 rounded bg-white/[0.05]" />
+          <div className="mt-3 h-3.5 w-full rounded bg-white/[0.05]" />
+          <div className="mt-1.5 h-3.5 w-2/3 rounded bg-white/[0.05]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Editorial date architecture: small-caps weekday, oversized numeral,
  * small-caps month, hairline rule — weekends tinted, today flagged.
@@ -74,6 +96,8 @@ export function EventsView() {
   const [events, setEvents] = useState<EventData[]>([]);
   const [heroId, setHeroId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchFailed, setFetchFailed] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
 
   // Tag view state
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -129,20 +153,26 @@ export function EventsView() {
 
   useEffect(() => {
     setLoading(true);
+    setFetchFailed(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     fetch(`/api/events?start=${startDate}&end=${endDate}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
         setEvents(data.events || []);
         setHeroId(data.heroId ?? null);
         setLoading(false);
       })
       .catch(() => {
+        // A failed fetch is NOT a quiet week — surface it honestly.
         setEvents([]);
         setHeroId(null);
+        setFetchFailed(true);
         setLoading(false);
       });
-  }, [startDate, endDate]);
+  }, [startDate, endDate, retryTick]);
 
   // Tag data fetch
   const fetchTagEvents = useCallback(async (tag: string, offset: number, append: boolean) => {
@@ -203,6 +233,34 @@ export function EventsView() {
     directionRef.current = 'next';
     setWeekOffset((prev) => prev + 1);
   }, []);
+  const onBackToThisWeek = useCallback(() => {
+    // Direction must be set BEFORE the offset change or the slide animates
+    // the wrong way.
+    setWeekOffset((prev) => {
+      directionRef.current = prev > 0 ? 'prev' : 'next';
+      return 0;
+    });
+  }, []);
+
+  // Keyboard week navigation. Ignored while typing (inputs/textareas) and in
+  // tag view, where the weekly view is unmounted and arrows would silently
+  // mutate weekOffset behind the user's back.
+  useEffect(() => {
+    if (activeTag) return;
+    const handleKey = (e: KeyboardEvent) => {
+      // Holding the key fires auto-repeat ~30/s; each press remounts the week
+      // container, and the pile-up can hit React's update-depth limit.
+      if (e.repeat) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "ArrowLeft") onPrevWeek();
+      else if (e.key === "ArrowRight") onNextWeek();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [activeTag, onPrevWeek, onNextWeek]);
 
   const handleTagClick = useCallback((tag: string) => {
     setActiveTag(tag);
@@ -239,6 +297,13 @@ export function EventsView() {
 
     return (
       <div>
+        {subtitleTarget &&
+          createPortal(
+            <span key={activeTag} className="text-xs text-[var(--color-muted)] week-date-fade">
+              {TAG_DESCRIPTIONS[activeTag] ?? `Events tagged ${activeTag}`}
+            </span>,
+            subtitleTarget
+          )}
         {/* Active tag pill */}
         <div className="py-6 flex items-center gap-3">
           <button
@@ -335,14 +400,33 @@ export function EventsView() {
   return (
     <div>
       {subtitlePortal}
-      <WeekNav startDate={startDateObj} endDate={endDateObj} onPrevWeek={onPrevWeek} onNextWeek={onNextWeek} />
+      <WeekNav
+        startDate={startDateObj}
+        endDate={endDateObj}
+        isCurrentWeek={weekOffset === 0}
+        onPrevWeek={onPrevWeek}
+        onNextWeek={onNextWeek}
+        onBackToThisWeek={onBackToThisWeek}
+      />
 
       <div
         key={weekOffset}
         className={directionRef.current === 'next' ? 'week-enter-next' : 'week-enter-prev'}
       >
         {loading ? (
-          <p className="text-center py-16 text-[var(--color-muted)]">Loading...</p>
+          <LoadingSkeleton />
+        ) : fetchFailed ? (
+          <div className="text-center py-16">
+            <p className="text-sm text-[var(--color-muted)]">
+              Couldn&apos;t load the week.{" "}
+              <button
+                onClick={() => setRetryTick((t) => t + 1)}
+                className="text-[var(--color-link)] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/60 rounded"
+              >
+                Retry
+              </button>
+            </p>
+          </div>
         ) : events.length === 0 ? (
           <EmptyState />
         ) : (

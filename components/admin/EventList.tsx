@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ALL_TAGS, TAG_COLORS } from "../../lib/tags";
+import { ALL_TAGS, TAG_HEX } from "../../lib/tags";
 
 interface AdminEvent {
   id: string;
@@ -202,7 +202,7 @@ export function EventList() {
                         <span
                           key={tag}
                           className="text-[10px] px-1.5 py-0.5 rounded-full text-white"
-                          style={{ backgroundColor: TAG_COLORS[tag]?.replace("var(--color-tag-", "").replace(")", "") || "#666" }}
+                          style={{ backgroundColor: TAG_HEX[tag] || "#666" }}
                         >
                           {tag}
                         </span>

@@ -28,6 +28,24 @@ export const TAG_COLORS: Record<string, string> = {
   "try lah": "var(--color-tag-try-lah)",
 };
 
+// Literal hex values for contexts without the site's CSS variables (admin
+// inline styles, emails). Keep in sync with the --color-tag-* definitions in
+// app/globals.css.
+export const TAG_HEX: Record<string, string> = {
+  "live & loud": "#3B82F6",
+  "culture fix": "#9F67FF",
+  "go see": "#D97706",
+  "game on": "#22C55E",
+  "screen time": "#EF4444",
+  "taste test": "#F2568B",
+  "touch grass": "#84CC16",
+  "free lah": "#EAB308",
+  "last call": "#F97316",
+  "bring someone": "#EC4899",
+  "once only": "#D1D5DB",
+  "try lah": "#14B8A6",
+};
+
 export const TAG_DESCRIPTIONS: Record<string, string> = {
   "live & loud": "Concerts, live music, DJ sets",
   "culture fix": "Theatre, ballet, orchestra, opera",
