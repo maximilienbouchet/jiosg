@@ -16,29 +16,44 @@ const YEAR_PATTERN = /^20\d{2}$/;
 export function normalizeTitle(title: string): string[] {
   return title
     .toLowerCase()
-    .replace(/[^\w\s]/g, "")
+    // Keep letters/digits from any script — `\w` is ASCII-only and would strip
+    // CJK titles down to nothing, which matters for Chinese-language events.
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
     .split(/\s+/)
     .filter((w) => w.length > 0 && !TITLE_STOP_WORDS.has(w) && !YEAR_PATTERN.test(w));
 }
 
+/**
+ * Titles refer to the same event.
+ *
+ * Uses *proportional* overlap, not an absolute shared-word count. Series titles
+ * ("Holiday Art Immersion - Manga Drawing" vs "Holiday Art Immersion - Acrylic
+ * Painting") share plenty of words while being genuinely different events, so a
+ * flat "3 words in common" threshold collapses a whole programme into one entry.
+ */
 export function titlesMatch(titleA: string, titleB: string): boolean {
-  const wordsA = normalizeTitle(titleA);
-  const wordsB = normalizeTitle(titleB);
+  const setA = new Set(normalizeTitle(titleA));
+  const setB = new Set(normalizeTitle(titleB));
 
-  if (wordsA.length === 0 || wordsB.length === 0) return false;
+  if (setA.size === 0 || setB.size === 0) return false;
 
-  // Word-set containment: every word in the shorter title appears in the longer
-  const [shorter, longer] = wordsA.length <= wordsB.length ? [wordsA, wordsB] : [wordsB, wordsA];
-  const longerSet = new Set(longer);
-  if (shorter.every((w) => longerSet.has(w))) return true;
+  const [shorter, longer] = setA.size <= setB.size ? [setA, setB] : [setB, setA];
 
-  // Shared words threshold
-  const setA = new Set(wordsA);
-  const shared = wordsB.filter((w) => setA.has(w)).length;
-  const minLength = Math.min(wordsA.length, wordsB.length);
-  const threshold = minLength < 4 ? 2 : 3;
+  // One title is a shortened form of the other ("Anoushka Shankar" vs
+  // "Anoushka Shankar Live in Concert"). Require the shorter to carry real
+  // signal and to make up a decent share of the longer, so that a generic
+  // series prefix does not swallow every event under it.
+  const isContained = [...shorter].every((w) => longer.has(w));
+  if (isContained && shorter.size >= 2 && shorter.size / longer.size >= 0.5) {
+    return true;
+  }
 
-  return shared >= threshold;
+  // Otherwise require substantial overlap in both directions (Jaccard).
+  let shared = 0;
+  for (const w of setA) if (setB.has(w)) shared++;
+  const union = setA.size + setB.size - shared;
+
+  return union > 0 && shared / union >= 0.6;
 }
 
 // --- Venue normalization & matching ---
@@ -51,7 +66,7 @@ const VENUE_STOP_WORDS = new Set([
 export function normalizeVenue(venue: string): string[] {
   return venue
     .toLowerCase()
-    .replace(/[^\w\s]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
     .split(/\s+/)
     .filter((w) => w.length > 0 && !VENUE_STOP_WORDS.has(w));
 }
@@ -66,6 +81,11 @@ export function venuesMatch(venueA: string, venueB: string): boolean {
   const [shorter, longer] = wordsA.length <= wordsB.length ? [wordsA, wordsB] : [wordsB, wordsA];
   const longerSet = new Set(longer);
   if (shorter.every((w) => longerSet.has(w))) return true;
+
+  // Same venue complex, different granularity: sources name the building
+  // ("Esplanade - Theatres on the Bay") or the room ("Esplanade Concert Hall").
+  // A shared distinctive leading token means the same complex.
+  if (wordsA[0] === wordsB[0] && wordsA[0].length >= 4) return true;
 
   // Shared words: 2+ in common
   const setA = new Set(wordsA);
@@ -87,10 +107,41 @@ export function datesOverlap(eventA: EventRow, eventB: EventRow): boolean {
 
 // --- Composite check ---
 
+/**
+ * Both titles reduce to the same set of 3+ significant words — distinctive
+ * enough that a same-day match is the same event regardless of venue string.
+ */
+function titlesAreIdentical(titleA: string, titleB: string): boolean {
+  const wordsA = normalizeTitle(titleA);
+  const wordsB = normalizeTitle(titleB);
+  if (wordsA.length < 3 || wordsA.length !== wordsB.length) return false;
+  const setB = new Set(wordsB);
+  return wordsA.every((w) => setB.has(w));
+}
+
 export function eventsAreDuplicates(a: EventRow, b: EventRow): boolean {
-  return titlesMatch(a.raw_title, b.raw_title) &&
-    datesOverlap(a, b) &&
-    venuesMatch(a.venue, b.venue);
+  if (!datesOverlap(a, b)) return false;
+  if (!titlesMatch(a.raw_title, b.raw_title)) return false;
+
+  // Fuzzy title matching exists to absorb how *different* sources word the same
+  // event. Within one source, near-misses are almost always genuinely different
+  // events from the same programme ("...Acrylic Painting" vs "...Watercolour
+  // Painting"), so demand an exact title match there. Exact re-listings, the
+  // real same-source duplicate, still qualify.
+  if (a.source === b.source && !titlesAreIdentical(a.raw_title, b.raw_title)) {
+    return false;
+  }
+
+  if (venuesMatch(a.venue, b.venue)) return true;
+
+  // Venue strings can differ beyond recognition across sources (a ticketing
+  // platform lists "Esplanade - Theatres on the Bay", the venue lists
+  // "Esplanade Concert Hall"). An identical distinctive title on the same
+  // start date is sufficient on its own.
+  return (
+    titlesAreIdentical(a.raw_title, b.raw_title) &&
+    a.event_date_start.slice(0, 10) === b.event_date_start.slice(0, 10)
+  );
 }
 
 // --- Canonical selection ---

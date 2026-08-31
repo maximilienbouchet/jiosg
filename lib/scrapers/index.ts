@@ -1,3 +1,4 @@
+import { initializeDb, insertScraperRun } from "../db";
 import { scrapeTheKallang } from "./thekallang";
 import { scrapeEventbrite } from "./eventbrite";
 import { scrapeEsplanade } from "./esplanade";
@@ -8,6 +9,21 @@ import { scrapeTessera } from "./tessera";
 import { scrapeScape } from "./scape";
 import { scrapeSrt } from "./srt";
 import { scrapeBookMyShow } from "./bookmyshow";
+import { scrapeFilmhouse } from "./filmhouse";
+
+// A single scraper must not be able to eat the whole serverless budget. Vercel
+// kills the function at 60s; cap each scraper below that so the slow ones fail
+// loudly instead of starving the rest. Scrapers run in parallel, so the whole
+// phase is bounded by this. Slowest today is eventbrite at ~44s.
+const SCRAPER_TIMEOUT_MS = 50_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${name} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
+}
 
 export async function runAllScrapers(): Promise<{
   total: number;
@@ -29,13 +45,28 @@ export async function runAllScrapers(): Promise<{
     { name: "scape", fn: scrapeScape },
     { name: "srt", fn: scrapeSrt },
     { name: "bookmyshow", fn: scrapeBookMyShow },
+    { name: "filmhouse", fn: scrapeFilmhouse },
   ];
 
-  // Run all scrapers in parallel for speed (critical for Vercel 60s timeout)
+  await initializeDb();
+
+  // Run all scrapers in parallel for speed (critical for Vercel 60s timeout),
+  // and record each run the moment it settles rather than after the whole batch.
+  // Logging at the end meant a timeout killed the function before anything was
+  // written, which is how broken scrapers went unnoticed for months.
   const results = await Promise.allSettled(
     scrapers.map(async (scraper) => {
-      const count = await scraper.fn();
-      return { name: scraper.name, count };
+      try {
+        const count = await withTimeout(scraper.fn(), SCRAPER_TIMEOUT_MS, scraper.name);
+        await insertScraperRun({ source: scraper.name, events_found: count, error: null });
+        return { name: scraper.name, count };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await insertScraperRun({ source: scraper.name, events_found: 0, error: message }).catch(
+          (logError) => console.error(`[scrapers] Could not log ${scraper.name} failure:`, logError)
+        );
+        throw error;
+      }
     })
   );
 

@@ -3,7 +3,10 @@ import { initializeDb, checkEventExists, upsertEvent } from "../db";
 const LISTING_URL = "https://api.yourtessera.com/v2/mp/events?city=singapore";
 const USER_AGENT = "SGEventsCuration/1.0";
 const DETAIL_DELAY_MS = 300;
-const MAX_PAGES = 20;
+// The API returns 6 events per page; the full Singapore catalogue is ~120.
+// Keep headroom so growth does not silently truncate the tail (which is where
+// the furthest-out — and often most notable — events live).
+const MAX_PAGES = 60;
 
 const EXCLUDED_CATEGORIES = new Set(["health-wellness", "business-professional"]);
 
@@ -59,38 +62,51 @@ export async function scrapeTessera(): Promise<number> {
   const allEvents: TesseraEvent[] = [];
   let url: string | null = LISTING_URL;
   let pageCount = 0;
+  const seenCursors = new Set<string>();
 
   while (url && pageCount < MAX_PAGES) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": USER_AGENT,
-          "Origin": "https://www.yourtessera.com",
-          "Accept": "application/json",
-        },
-      });
-      if (!response.ok) {
-        console.warn(`[tessera] Listing returned ${response.status}, stopping`);
-        break;
-      }
-      const data: TesseraListingResponse = await response.json();
-      const events = data.data || [];
-      allEvents.push(...events);
-
-      const nextCursor = data.next_cursor || data.meta?.nextCursor;
-      if (nextCursor && data.has_more !== false) {
-        url = `${LISTING_URL}&cursor=${nextCursor}`;
-      } else {
-        url = null;
-      }
-      pageCount++;
-    } catch (err) {
-      console.warn("[tessera] Fetch failed:", err);
-      break;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        "Origin": "https://www.yourtessera.com",
+        "Accept": "application/json",
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`[tessera] Listing returned ${response.status} on page ${pageCount + 1}`);
     }
+    const data: TesseraListingResponse = await response.json();
+    const events = data.data || [];
+    allEvents.push(...events);
+    pageCount++;
+
+    const nextCursor = data.next_cursor || data.meta?.nextCursor;
+    if (!nextCursor || data.has_more === false) {
+      url = null;
+      continue;
+    }
+
+    // The API echoes the same nextCursor when the pagination parameter is not
+    // understood, which silently re-fetches page 1 forever. Bail loudly instead:
+    // this exact failure hid ~90% of the catalogue behind a stuck first page.
+    if (seenCursors.has(nextCursor)) {
+      throw new Error(
+        `[tessera] Pagination stuck — cursor repeated after page ${pageCount}. ` +
+          `Check that the cursor query parameter name is still "nextCursor".`
+      );
+    }
+    seenCursors.add(nextCursor);
+
+    // NB: the parameter is nextCursor. Sending "cursor" is silently ignored.
+    url = `${LISTING_URL}&nextCursor=${encodeURIComponent(nextCursor)}`;
   }
 
-  console.log(`[tessera] Found ${allEvents.length} events across ${pageCount} pages`);
+  const uniqueSlugs = new Set(allEvents.map((e) => e.slug)).size;
+  console.log(`[tessera] Found ${uniqueSlugs} unique events across ${pageCount} pages`);
+
+  if (allEvents.length === 0) {
+    throw new Error("[tessera] Listing returned no events at all");
+  }
 
   for (const event of allEvents) {
     // Pre-filter: skip excluded categories

@@ -79,21 +79,22 @@ export async function initializeDb(): Promise<void> {
     await db.execute("ALTER TABLE events ADD COLUMN enriched_description TEXT");
   }
 
-  // Migrate CHECK constraint to allow new sources (peatix, fever, tessera).
+  // Migrate CHECK constraint to allow new sources.
   // SQLite can't ALTER a CHECK constraint, so we recreate the table.
-  // This is idempotent — we check if the constraint already allows the new sources.
+  // This is idempotent — probe with the MOST RECENTLY ADDED source, so adding
+  // another one in future still triggers the migration.
   try {
-    await db.execute({ sql: "INSERT INTO events (id, source, source_url, raw_title, venue, event_date_start) VALUES ('__check_test__', 'bookmyshow', '__check_test__', '__check_test__', '__check_test__', '2000-01-01')", args: [] });
+    await db.execute({ sql: "INSERT INTO events (id, source, source_url, raw_title, venue, event_date_start) VALUES ('__check_test__', 'filmhouse', '__check_test__', '__check_test__', '__check_test__', '2000-01-01')", args: [] });
     // If insert succeeded, constraint already allows new sources — clean up
     await db.execute("DELETE FROM events WHERE id = '__check_test__'");
   } catch {
-    // CHECK constraint rejected 'peatix' — need to recreate table
+    // CHECK constraint rejected the probe — need to recreate table
     console.log("[db] Migrating events table to allow new sources...");
     await db.batch([
       { sql: "ALTER TABLE events RENAME TO events_old", args: [] },
       { sql: `CREATE TABLE events (
         id TEXT PRIMARY KEY,
-        source TEXT NOT NULL CHECK (source IN ('eventbrite', 'thekallang', 'esplanade', 'sportplus', 'manual', 'peatix', 'fever', 'tessera', 'scape', 'srt', 'bookmyshow')),
+        source TEXT NOT NULL CHECK (source IN ('eventbrite', 'thekallang', 'esplanade', 'sportplus', 'manual', 'peatix', 'fever', 'tessera', 'scape', 'srt', 'bookmyshow', 'filmhouse')),
         source_url TEXT NOT NULL,
         raw_title TEXT NOT NULL,
         raw_description TEXT,
@@ -146,6 +147,7 @@ export async function getPublishedEvents(startDate: string, endDate: string): Pr
     sql: `
       SELECT * FROM events
       WHERE is_published = 1
+        AND is_duplicate = 0
         AND event_date_start < date(?, '+1 day')
         AND (event_date_end >= ? OR (event_date_end IS NULL AND event_date_start >= ?))
       ORDER BY event_date_start ASC
@@ -355,6 +357,7 @@ export async function getHeadsUpEvents(todaySgt: string): Promise<EventRow[]> {
       SELECT * FROM events
       WHERE is_heads_up = 1
         AND is_published = 1
+        AND is_duplicate = 0
         AND event_date_start > date(?, '+7 days')
       ORDER BY event_date_start ASC
       LIMIT 20
@@ -374,6 +377,7 @@ export async function getTopHeadsUpEventsForDigest(
       SELECT * FROM events
       WHERE is_heads_up = 1
         AND is_published = 1
+        AND is_duplicate = 0
         AND event_date_start > date(?, '+7 days')
       ORDER BY COALESCE(llm_score, 0) DESC, event_date_start ASC
       LIMIT ?
@@ -393,7 +397,8 @@ export async function getEventsByTag(
   const pattern = `%"${tag}"%`;
   const result = await db.execute({
     sql: `SELECT * FROM events
-          WHERE is_published = 1 AND event_date_start >= ? AND tags LIKE ?
+          WHERE is_published = 1 AND is_duplicate = 0
+            AND event_date_start >= ? AND tags LIKE ?
           ORDER BY event_date_start ASC LIMIT ? OFFSET ?`,
     args: [todaySgt, pattern, limit, offset],
   });

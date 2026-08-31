@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAllScrapers } from "../../../../lib/scrapers";
-import { initializeDb, insertScraperRun, getLatestScraperStats } from "../../../../lib/db";
+import { getLatestScraperStats } from "../../../../lib/db";
 import { sendPipelineReportEmail, LlmPipelineStats } from "../../../../lib/email";
 import { processUnfilteredEvents } from "../../../../lib/llm";
 import { verifyCronAuth } from "../../../../lib/cron-auth";
 
 export const maxDuration = 60;
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt", "bookmyshow"];
+const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt", "bookmyshow", "filmhouse"];
 
 // GET /api/cron/scrape-and-process              → full pipeline (default)
 // GET /api/cron/scrape-and-process?action=scrape  → scrape only
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
           console.log(`[process] Time guard hit after ${llmBatches} batches (${totalProcessed} events). Stopping LLM loop.`);
           break;
         }
-        const result = await processUnfilteredEvents(20);
+        const result = await processUnfilteredEvents(20, { dedup: llmBatches === 0 });
         totalProcessed += result.processed;
         totalIncluded += result.included;
         totalExcluded += result.excluded;
@@ -91,15 +91,8 @@ export async function GET(request: NextRequest) {
 
   // Action: scrape-only
   if (action === "scrape") {
+    // runAllScrapers records each scraper_runs row as that scraper settles.
     const { total, bySource, errors } = await runAllScrapers();
-    await initializeDb();
-    for (const source of ALL_SOURCES) {
-      if (source in errors) {
-        await insertScraperRun({ source, events_found: 0, error: errors[source] });
-      } else {
-        await insertScraperRun({ source, events_found: bySource[source] ?? 0, error: null });
-      }
-    }
     const hasErrors = Object.keys(errors).length > 0;
     return NextResponse.json({
       success: !hasErrors,
@@ -111,17 +104,8 @@ export async function GET(request: NextRequest) {
 
   // Default: full pipeline (scrape + process + report) — manual-only fallback, not used by cron
 
-  // Phase 1: Scrape (parallel — fits within timeout)
+  // Phase 1: Scrape (parallel — fits within timeout, logs its own scraper_runs)
   const { total, bySource, errors } = await runAllScrapers();
-
-  await initializeDb();
-  for (const source of ALL_SOURCES) {
-    if (source in errors) {
-      await insertScraperRun({ source, events_found: 0, error: errors[source] });
-    } else {
-      await insertScraperRun({ source, events_found: bySource[source] ?? 0, error: null });
-    }
-  }
 
   const zeroSources = ALL_SOURCES.filter(
     (s) => !(s in errors) && (bySource[s] ?? 0) === 0
@@ -140,7 +124,7 @@ export async function GET(request: NextRequest) {
   try {
     let remaining = Infinity;
     while (remaining > 0) {
-      const result = await processUnfilteredEvents(20);
+      const result = await processUnfilteredEvents(20, { dedup: llmBatches === 0 });
       totalProcessed += result.processed;
       totalIncluded += result.included;
       totalExcluded += result.excluded;

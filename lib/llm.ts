@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ALL_TAGS } from "./tags";
 import { getUnprocessedEvents, countUnprocessedEvents, updateEventLlmResults, updateEnrichedDescription, type EventRow } from "./db";
 import { enrichDescription } from "./enrich";
-import { runDeduplication } from "./dedup";
+import { runDeduplication, type DedupPair } from "./dedup";
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -353,7 +353,10 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function processUnfilteredEvents(limit = 10): Promise<{
+export async function processUnfilteredEvents(
+  limit = 10,
+  options: { dedup?: boolean } = {}
+): Promise<{
   processed: number;
   included: number;
   excluded: number;
@@ -365,7 +368,13 @@ export async function processUnfilteredEvents(limit = 10): Promise<{
     throw new Error("ANTHROPIC_API_KEY environment variable is not set");
   }
 
-  const dedupResult = await runDeduplication();
+  // Deduplication scans the whole unprocessed set against every event in the
+  // same date window, so it only makes sense once per pipeline pass — not on
+  // every batch, where it would burn the cron's time budget re-scanning.
+  const { dedup = true } = options;
+  const dedupResult = dedup
+    ? await runDeduplication()
+    : { marked: 0, pairs: [] as DedupPair[] };
   if (dedupResult.marked > 0) {
     console.log(`[dedup] Marked ${dedupResult.marked} duplicate(s)`);
     for (const pair of dedupResult.pairs) {

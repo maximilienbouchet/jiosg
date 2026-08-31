@@ -11,7 +11,11 @@ const SEARCH_URLS = [
   "https://www.eventbrite.sg/d/singapore--singapore/sports-fitness--events/",
   "https://www.eventbrite.sg/d/singapore--singapore/health--events/",
 ];
-const MAX_PAGES = 3; // 8 URLs × 3 pages = 24 requests max; seenUrls handles cross-category dedup
+// 8 URLs × 2 pages = 16 requests; seenUrls handles cross-category dedup.
+// Kept at 2 because a 3-page sweep took ~94s, which overruns Vercel's 60s
+// function limit — the run was being killed partway every day. Page 3 is also
+// the lowest-relevance tail: Eventbrite yields ~1% of jio's published events.
+const MAX_PAGES = 2;
 const USER_AGENT = "SGEventsCuration/1.0";
 
 interface EventbriteEvent {
