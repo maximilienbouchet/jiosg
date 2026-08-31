@@ -85,3 +85,20 @@ export function selectWindowEvents(
   // Preserve the query's chronological order for display.
   return rows.filter((e) => picked.has(e.id));
 }
+
+/**
+ * The single event the UI should feature as "pick of the week": the lowest
+ * surviving editorial rank, or the deterministic top of the SELECTED rows when
+ * no picks exist (never an event that isn't shown — no 13-event weeks).
+ */
+export function pickHeroId(selectedRows: EventRow[], picks?: WindowPickRow[]): string | null {
+  if (selectedRows.length === 0) return null;
+
+  if (picks && picks.length > 0) {
+    const present = new Set(selectedRows.map((e) => e.id));
+    const surviving = [...picks].sort((a, b) => a.rank - b.rank).find((p) => present.has(p.event_id));
+    if (surviving) return surviving.event_id;
+  }
+
+  return deterministicOrder(selectedRows)[0].id;
+}

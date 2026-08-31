@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublishedEvents, getEventsByTag, getWindowPicks, initializeDb } from "../../../lib/db";
-import { selectWindowEvents } from "../../../lib/select-events";
+import { selectWindowEvents, pickHeroId } from "../../../lib/select-events";
 import { getMonday } from "../../../lib/dates";
 import { ALL_TAGS } from "../../../lib/tags";
 
@@ -67,5 +67,7 @@ export async function GET(request: NextRequest) {
     ...(rankById.has(row.id) ? { rank: rankById.get(row.id) } : {}),
   }));
 
-  return NextResponse.json({ events });
+  // The one event the UI may feature as "pick of the week" — always drawn
+  // from the selected rows, so featuring it never adds a 13th event.
+  return NextResponse.json({ events, heroId: pickHeroId(rows, picks) });
 }

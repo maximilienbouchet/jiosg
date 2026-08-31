@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { WeekNav } from "./WeekNav";
 import { EventCard } from "./EventCard";
+import { HeroPick } from "./HeroPick";
 import { EmptyState } from "./EmptyState";
 import { TAG_COLORS, TAG_DESCRIPTIONS } from "../lib/tags";
 import { addDays, getMonday } from "../lib/dates";
@@ -71,6 +72,7 @@ export function EventsView() {
   // Weekly view state
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState<EventData[]>([]);
+  const [heroId, setHeroId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Tag view state
@@ -132,10 +134,12 @@ export function EventsView() {
       .then((res) => res.json())
       .then((data) => {
         setEvents(data.events || []);
+        setHeroId(data.heroId ?? null);
         setLoading(false);
       })
       .catch(() => {
         setEvents([]);
+        setHeroId(null);
         setLoading(false);
       });
   }, [startDate, endDate]);
@@ -301,9 +305,14 @@ export function EventsView() {
   }
 
   // --- WEEKLY VIEW ---
+  // Hero: only the current week features its top pick; the hero event leaves
+  // its day group so it never renders twice.
+  const heroEvent = weekOffset === 0 && heroId ? events.find((e) => e.id === heroId) ?? null : null;
+  const listEvents = heroEvent ? events.filter((e) => e.id !== heroEvent.id) : events;
+
   // Group by date — multi-day events that started before the visible week
   // get grouped under the week's start date (Monday)
-  const grouped = groupByDate(events, startDate);
+  const grouped = groupByDate(listEvents, startDate);
   const sortedDates = Object.keys(grouped).sort();
 
   // WeekNav expects Date objects
@@ -338,8 +347,20 @@ export function EventsView() {
           <EmptyState />
         ) : (
           <div className="mt-6 space-y-8">
+            {heroEvent && (
+              <HeroPick
+                title={heroEvent.title}
+                venue={heroEvent.venue}
+                blurb={heroEvent.blurb}
+                tags={heroEvent.tags}
+                sourceUrl={heroEvent.sourceUrl}
+                eventDateStart={heroEvent.eventDateStart}
+                eventDateEnd={heroEvent.eventDateEnd}
+                onTagClick={handleTagClick}
+              />
+            )}
             {(() => {
-              let globalCardIndex = 0;
+              let globalCardIndex = 1;
               return sortedDates.map((dateKey) => (
                 <div key={dateKey}>
                   <DayHeader dateKey={dateKey} todaySgt={todaySgt} />
