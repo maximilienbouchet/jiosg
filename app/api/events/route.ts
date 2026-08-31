@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedEvents, getEventsByTag, initializeDb } from "../../../lib/db";
+import { getPublishedEvents, getEventsByTag, getWindowPicks, initializeDb } from "../../../lib/db";
 import { selectWindowEvents } from "../../../lib/select-events";
+import { getMonday } from "../../../lib/dates";
 import { ALL_TAGS } from "../../../lib/tags";
 
 // GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD
@@ -46,8 +47,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing start or end parameter" }, { status: 400 });
   }
 
-  const rows = selectWindowEvents(await getPublishedEvents(start, end), start);
+  // Editorial picks are keyed by the Monday of the requested window; applied
+  // by intersection inside selectWindowEvents (see lib/select-events.ts).
+  const picks = await getWindowPicks(getMonday(start));
+  const rankById = new Map(picks.map((p) => [p.event_id, p.rank]));
+  const rows = selectWindowEvents(await getPublishedEvents(start, end), start, picks);
 
+  // Response stays chronological; `rank` is additive and only present when the
+  // editorial pass covered this window (the hero consumes the lowest rank).
   const events = rows.map((row) => ({
     id: row.id,
     title: row.raw_title,
@@ -57,6 +64,7 @@ export async function GET(request: NextRequest) {
     sourceUrl: row.source_url,
     eventDateStart: row.event_date_start,
     eventDateEnd: row.event_date_end,
+    ...(rankById.has(row.id) ? { rank: rankById.get(row.id) } : {}),
   }));
 
   return NextResponse.json({ events });

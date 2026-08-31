@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
-import { getPublishedEvents, getClient, initializeDb, getHeadsUpEvents, getEventsByTag, getEventById } from "../../../lib/db";
+import { getPublishedEvents, getClient, initializeDb, getHeadsUpEvents, getEventsByTag, getEventById, getWindowPicks } from "../../../lib/db";
 import { selectWindowEvents } from "../../../lib/select-events";
 import type { EventRow } from "../../../lib/db";
-import { addDays, formatDateHeader } from "../../../lib/dates";
+import { addDays, formatDateHeader, getMonday } from "../../../lib/dates";
 import { ALL_TAGS } from "../../../lib/tags";
 
 function getTodaySgt(): string {
@@ -92,9 +92,18 @@ const handler = createMcpHandler(
             events = result.rows as unknown as EventRow[];
           } else {
             const rows = await getPublishedEvents(friday, sunday);
-            // Same curated selection as the public site (~12/window cap).
-            events = selectWindowEvents(rows, friday).filter(
+            // Same curated selection as the public site: editorial picks for
+            // the week (keyed by Monday, applied by intersection) + caps.
+            const picks = await getWindowPicks(getMonday(friday));
+            const rankById = new Map(picks.map((p) => [p.event_id, p.rank]));
+            events = selectWindowEvents(rows, friday, picks).filter(
               (r) => r.llm_included === 1 && r.is_duplicate === 0
+            );
+            // Editorially ranked events lead, best first; unranked follow by date.
+            events.sort(
+              (a, b) =>
+                (rankById.get(a.id) ?? Infinity) - (rankById.get(b.id) ?? Infinity) ||
+                a.event_date_start.localeCompare(b.event_date_start)
             );
           }
 
@@ -234,9 +243,18 @@ const handler = createMcpHandler(
             events = result.rows as unknown as EventRow[];
           } else {
             const rows = await getPublishedEvents(todaySgt, endDate);
-            // Same curated selection as the public site (~12/window cap).
-            events = selectWindowEvents(rows, todaySgt).filter(
+            // Same curated selection as the public site: editorial picks for
+            // the week (keyed by Monday, applied by intersection) + caps.
+            const picks = await getWindowPicks(getMonday(todaySgt));
+            const rankById = new Map(picks.map((p) => [p.event_id, p.rank]));
+            events = selectWindowEvents(rows, todaySgt, picks).filter(
               (r) => r.llm_included === 1 && r.is_duplicate === 0
+            );
+            // Editorially ranked events lead, best first; unranked follow by date.
+            events.sort(
+              (a, b) =>
+                (rankById.get(a.id) ?? Infinity) - (rankById.get(b.id) ?? Infinity) ||
+                a.event_date_start.localeCompare(b.event_date_start)
             );
           }
 

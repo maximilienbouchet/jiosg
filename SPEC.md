@@ -26,8 +26,8 @@
 
 ### 3.1 Public Website — Single Page
 
-- **Rolling 7-day window** from today. Always shows "next 7 days" regardless of when you visit
-- **Window selection** (`lib/select-events.ts`): publishing (score >= 7) decides what is *eligible*; at display time each window shows at most ~12 events, ranked by score then heads-up flag, with per-source (max 4) and ongoing-event (max 4) caps so no single venue's programme or long-running exhibition dominates. Quiet weeks simply show fewer — never pad. Applies to the public site and the MCP week/weekend tools.
+- **Calendar-week view (Mon–Sun)**: the current week shows today through Sunday; ← → arrows navigate whole calendar weeks
+- **Window selection** (`lib/select-events.ts`): publishing (score >= 7) decides what is *eligible*; at display time each window shows at most ~12 events. A **nightly editorial pass** (Claude, see §6) ranks the current week's eligible events *relative to each other* and stores picks in `window_picks` keyed by the week's Monday; the site and MCP tools apply them by intersection. When no picks exist (arrow-navigated weeks, editor failure), a deterministic fallback ranks by score then heads-up flag, with per-source (max 4) and ongoing-event (max 4) caps. Quiet weeks simply show fewer — never pad.
 - **← → navigation arrows** to browse previous/future weeks
 - **Event cards** displaying:
   - Date (day of week + date, e.g. "SAT 22 FEB")
@@ -216,6 +216,14 @@ digest_events
 ├── event_id             (TEXT)
 ├── category             (TEXT, one of: new, ongoing, ending_soon, heads_up)
 ├── created_at           (TEXT, datetime)
+
+window_picks
+├── id                   (TEXT, UUID primary key)
+├── window_start         (TEXT, ISO date — the Monday of the ranked week)
+├── event_id             (TEXT)
+├── rank                 (INTEGER, 1 = pick of the week)
+├── reason               (TEXT, nullable — editor's one-line why)
+├── created_at           (TEXT, datetime)
 ```
 
 ---
@@ -301,6 +309,25 @@ For film screenings: a landmark restoration, festival premiere, or director Q&A 
 
 Respond with JSON only:
 {"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}
+```
+
+### Editor Prompt (System)
+
+Runs nightly after LLM processing (03:10 SGT), ranking the current week's published events relative to each other. Output is validated (ids must exist, unique ids and integer ranks, ≤ 12 picks) and stored in `window_picks`; any validation failure falls back to deterministic selection.
+
+```
+You are the weekly editor for jio, a curated Singapore events site for culturally curious 20-40 year olds. You are given every event eligible to appear this week, as JSON. Choose and rank the week's lineup.
+
+Rules:
+- Pick up to 12 events, ranked from 1 (the week's single best) downward.
+- Rank 1 is the "pick of the week" — the one event you'd tell a friend not to miss.
+- Balance the week: spread picks across days and across categories (music, film, art, food, sport, talks). Not five concerts.
+- Prefer events that only happen this window. A long-running exhibition (see weeks_running) earns a slot by being genuinely major, not by persistence.
+- At most 2 picks per source unless quality clearly demands more.
+- A weak week means fewer picks — never pad to 12.
+
+Respond with JSON only:
+{"picks": [{"id": "<event id>", "rank": 1, "why": "one short line"}]}
 ```
 
 ### Digest Intro Prompt (System)

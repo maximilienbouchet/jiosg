@@ -47,9 +47,10 @@ See @SPEC.md for full product requirements, data model, and LLM prompts.
 ## Key Design Decisions
 
 - Single-page app — all events on one URL, no individual event pages
-- Rolling 7-day window from today, not fixed calendar weeks
+- Calendar-week view (Mon–Sun): current week shows today→Sunday, arrows navigate whole weeks
 - Events get 1-3 fun tags (see SPEC.md Section 4 for tag vocabulary)
 - LLM pipeline is two separate calls: filter (include/exclude) then blurb+tags generation
+- Weekly lineup is ranked by a nightly LLM editorial pass (`window_picks`, see SPEC 3.1); deterministic score ranking is the fallback
 - Admin panel is a simple password-protected page, not a full auth system
 - Database is hosted on Turso (cloud libSQL) — no local db file needed
 - Scrapers run as API routes called by external cron, not as background processes

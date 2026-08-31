@@ -720,3 +720,38 @@ export async function insertDigestEvents(
     }))
   );
 }
+
+// --- Window picks (nightly editorial ranking, see lib/select-events.ts) ---
+
+export interface WindowPickRow {
+  event_id: string;
+  rank: number;
+  reason: string | null;
+}
+
+export async function getWindowPicks(windowStart: string): Promise<WindowPickRow[]> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `SELECT event_id, rank, reason FROM window_picks
+          WHERE window_start = ? ORDER BY rank ASC`,
+    args: [windowStart],
+  });
+  return result.rows as unknown as WindowPickRow[];
+}
+
+export async function replaceWindowPicks(
+  windowStart: string,
+  picks: { eventId: string; rank: number; reason: string | null }[]
+): Promise<void> {
+  const db = getClient();
+  await db.batch([
+    { sql: "DELETE FROM window_picks WHERE window_start = ?", args: [windowStart] },
+    ...picks.map((p) => ({
+      sql: `INSERT INTO window_picks (id, window_start, event_id, rank, reason)
+            VALUES (?, ?, ?, ?, ?)`,
+      args: [crypto.randomUUID(), windowStart, p.eventId, p.rank, p.reason] as InValue[],
+    })),
+    // Old windows are never read again; keep the table from growing forever.
+    { sql: "DELETE FROM window_picks WHERE window_start < date('now', '-30 days')", args: [] },
+  ]);
+}

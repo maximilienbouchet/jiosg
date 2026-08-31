@@ -109,6 +109,19 @@ For film screenings: a landmark restoration, festival premiere, or director Q&A 
 Respond with JSON only:
 {"blurb": "your one sentence", "tags": ["tag1", "tag2"], "heads_up": true/false, "score": 7}`;
 
+const EDITOR_SYSTEM_PROMPT = `You are the weekly editor for jio, a curated Singapore events site for culturally curious 20-40 year olds. You are given every event eligible to appear this week, as JSON. Choose and rank the week's lineup.
+
+Rules:
+- Pick up to 12 events, ranked from 1 (the week's single best) downward.
+- Rank 1 is the "pick of the week" — the one event you'd tell a friend not to miss.
+- Balance the week: spread picks across days and across categories (music, film, art, food, sport, talks). Not five concerts.
+- Prefer events that only happen this window. A long-running exhibition (see weeks_running) earns a slot by being genuinely major, not by persistence.
+- At most 2 picks per source unless quality clearly demands more.
+- A weak week means fewer picks — never pad to 12.
+
+Respond with JSON only:
+{"picks": [{"id": "<event id>", "rank": 1, "why": "one short line"}]}`;
+
 function extractJson(text: string): string {
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) return fenceMatch[1].trim();
@@ -196,6 +209,98 @@ export async function generateBlurbAndTags(
       headsUp: false,
       score: 5,
     };
+  }
+}
+
+export interface EditorPick {
+  eventId: string;
+  rank: number;
+  reason: string | null;
+}
+
+/**
+ * Nightly editorial pass: rank the week's eligible events *relative to each
+ * other*. Absolute per-event scores collapsed to a 6-or-8 binary, so within a
+ * window most candidates tie; one in-context ranking call is what actually
+ * decides the lineup. Returns null on ANY problem — callers fall back to the
+ * deterministic selection in lib/select-events.ts, so this can never break
+ * the site.
+ */
+export async function runEditorPass(
+  events: EventRow[],
+  todaySgt: string
+): Promise<EditorPick[] | null> {
+  if (events.length < 2) return null;
+
+  const weeksRunning = (e: EventRow): number => {
+    const start = new Date(e.event_date_start.slice(0, 10)).getTime();
+    const today = new Date(todaySgt).getTime();
+    return Math.max(0, Math.floor((today - start) / (7 * 24 * 3600 * 1000)));
+  };
+
+  const payload = events.map((e) => ({
+    id: e.id,
+    title: e.raw_title,
+    blurb: e.blurb ?? "",
+    venue: e.venue,
+    date_start: e.event_date_start.slice(0, 10),
+    date_end: e.event_date_end?.slice(0, 10) ?? null,
+    tags: e.tags ? (JSON.parse(e.tags) as string[]) : [],
+    // Manual adds carry no llm_score; rank them as solid (7) — parity with
+    // the deterministic layer's scoreOf().
+    score: e.llm_score ?? 7,
+    heads_up: e.is_heads_up === 1,
+    source: e.source,
+    weeks_running: weeksRunning(e),
+  }));
+
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      // 12 picks with reasons run ~700-1200 output tokens; the house default
+      // of 256 would truncate and silently disable the editorial layer.
+      max_tokens: 1500,
+      system: EDITOR_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: JSON.stringify(payload) }],
+    });
+
+    if (response.stop_reason === "max_tokens") {
+      console.error("[editor] Response truncated at max_tokens — rejecting");
+      return null;
+    }
+
+    const raw = response.content[0].type === "text" ? response.content[0].text : "";
+    const parsed = JSON.parse(extractJson(raw));
+    if (!Array.isArray(parsed.picks)) return null;
+
+    const eligibleIds = new Set(events.map((e) => e.id));
+    const seenIds = new Set<string>();
+    const seenRanks = new Set<number>();
+    const picks: EditorPick[] = [];
+
+    for (const p of parsed.picks) {
+      const id = String(p.id);
+      const rank = Number(p.rank);
+      if (!eligibleIds.has(id)) return null; // hallucinated id — distrust everything
+      if (seenIds.has(id) || seenRanks.has(rank)) return null;
+      if (!Number.isInteger(rank) || rank < 1) return null;
+      seenIds.add(id);
+      seenRanks.add(rank);
+      picks.push({
+        eventId: id,
+        rank,
+        reason: p.why ? String(p.why).slice(0, 200) : null,
+      });
+    }
+
+    if (picks.length === 0 || picks.length > 12) return null;
+
+    // Ranks may be non-contiguous; order is what matters.
+    picks.sort((a, b) => a.rank - b.rank);
+    return picks;
+  } catch (error) {
+    console.error("[editor] Editor pass failed:", error);
+    return null;
   }
 }
 

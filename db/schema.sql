@@ -90,3 +90,13 @@ CREATE TABLE IF NOT EXISTS digest_events (
 );
 CREATE INDEX IF NOT EXISTS idx_digest_events_run_id ON digest_events(digest_run_id);
 CREATE INDEX IF NOT EXISTS idx_digest_events_event_id ON digest_events(event_id);
+
+CREATE TABLE IF NOT EXISTS window_picks (
+  id TEXT PRIMARY KEY,
+  window_start TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  reason TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_window_picks_window ON window_picks(window_start);
