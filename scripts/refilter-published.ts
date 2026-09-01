@@ -49,19 +49,30 @@ async function main() {
     const verdicts = await Promise.all(
       batch.map(async (event) => {
         const description = event.enriched_description ?? event.raw_description;
-        const verdict = await filterEvent(
-          event.raw_title,
-          description,
-          event.venue,
-          formatDates(event),
-          event.source
-        );
-        return { event, verdict };
+        try {
+          const verdict = await filterEvent(
+            event.raw_title,
+            description,
+            event.venue,
+            formatDates(event),
+            event.source
+          );
+          return { event, verdict };
+        } catch (error) {
+          // Never unpublish a live event because the LLM call failed —
+          // treat it as "keep" and report it.
+          console.warn(
+            `SKIP  [${event.source}] "${event.raw_title}" — LLM error: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+          return { event, verdict: null };
+        }
       })
     );
 
     for (const { event, verdict } of verdicts) {
-      if (verdict.include) {
+      if (!verdict || verdict.include) {
         kept++;
         continue;
       }

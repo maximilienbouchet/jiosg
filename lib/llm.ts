@@ -129,6 +129,45 @@ function extractJson(text: string): string {
   return text.trim();
 }
 
+const LLM_MAX_ATTEMPTS = 3;
+
+/**
+ * Call the model and parse its JSON reply, retrying transient failures.
+ *
+ * Throws if every attempt fails. That matters: these calls decide whether an
+ * event is ever shown, so a rate-limit or a truncated reply must NOT be
+ * mistaken for an editorial "exclude". Callers let the throw propagate so the
+ * event keeps llm_included = NULL and is retried on the next pass — a
+ * swallowed error here once buried 284 events, including an entire F1 lineup.
+ */
+async function callLlmJson(
+  system: string,
+  userMessage: string,
+  maxTokens: number
+): Promise<Record<string, unknown>> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= LLM_MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: maxTokens,
+        system,
+        messages: [{ role: "user", content: userMessage }],
+      });
+      const raw = response.content[0].type === "text" ? response.content[0].text : "";
+      return JSON.parse(extractJson(raw)) as Record<string, unknown>;
+    } catch (error) {
+      lastError = error;
+      if (attempt < LLM_MAX_ATTEMPTS) await delay(600 * attempt);
+    }
+  }
+  throw new Error(
+    `LLM call failed after ${LLM_MAX_ATTEMPTS} attempts: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  );
+}
+
 export async function filterEvent(
   rawTitle: string,
   rawDescription: string | null,
@@ -144,25 +183,11 @@ export async function filterEvent(
     ...(source ? [`Source: ${source}`] : []),
   ].join("\n");
 
-  try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 256,
-      system: FILTER_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    });
-
-    const raw =
-      response.content[0].type === "text" ? response.content[0].text : "";
-    const parsed = JSON.parse(extractJson(raw));
-    return {
-      include: Boolean(parsed.include),
-      reason: String(parsed.reason || ""),
-    };
-  } catch (error) {
-    console.error("filterEvent parse/API error:", error);
-    return { include: false, reason: "LLM response parse error" };
-  }
+  const parsed = await callLlmJson(FILTER_SYSTEM_PROMPT, userMessage, 256);
+  return {
+    include: Boolean(parsed.include),
+    reason: String(parsed.reason || ""),
+  };
 }
 
 export async function generateBlurbAndTags(
@@ -176,41 +201,21 @@ export async function generateBlurbAndTags(
     `Venue: ${venue}`,
   ].join("\n");
 
-  try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 256,
-      system: BLURB_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    });
+  const parsed = await callLlmJson(BLURB_SYSTEM_PROMPT, userMessage, 256);
 
-    const raw =
-      response.content[0].type === "text" ? response.content[0].text : "";
-    const parsed = JSON.parse(extractJson(raw));
+  const validTags = (Array.isArray(parsed.tags) ? (parsed.tags as string[]) : [])
+    .filter((t: string) => (ALL_TAGS as readonly string[]).includes(t))
+    .slice(0, 3);
 
-    const validTags = (parsed.tags as string[])
-      .filter((t: string) => (ALL_TAGS as readonly string[]).includes(t))
-      .slice(0, 3);
+  const rawScore = Number(parsed.score);
+  const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(10, Math.round(rawScore))) : 5;
 
-    const rawScore = Number(parsed.score);
-    const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(10, Math.round(rawScore))) : 5;
-
-    return {
-      blurb: truncateBlurb(String(parsed.blurb), 200),
-      tags: validTags.length > 0 ? validTags : [],
-      headsUp: Boolean(parsed.heads_up),
-      score,
-    };
-  } catch (error) {
-    console.error("generateBlurbAndTags parse/API error:", error);
-    return {
-      blurb:
-        rawTitle.length > 200 ? rawTitle.slice(0, 197) + "..." : rawTitle,
-      tags: [],
-      headsUp: false,
-      score: 5,
-    };
-  }
+  return {
+    blurb: truncateBlurb(String(parsed.blurb ?? rawTitle), 200),
+    tags: validTags,
+    headsUp: Boolean(parsed.heads_up),
+    score,
+  };
 }
 
 export interface EditorPick {
