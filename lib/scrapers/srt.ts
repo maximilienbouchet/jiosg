@@ -580,9 +580,13 @@ export async function scrapeSrt(): Promise<number> {
     const detail = unresolved
       .map((u) => `"${u.title}" (${u.url}) — ${u.reason}${u.dateText ? ` [line: "${u.dateText}"]` : ""}`)
       .join("; ");
-    throw new Error(
-      `SRT: ${unresolved.length} production page(s) could not be parsed and need investigation: ${detail}`
-    );
+    // One odd card is normal — SRT lists non-productions (audition forms,
+    // programme pages) alongside shows. Only a total parse failure means the
+    // page structure changed and the scraper is genuinely broken.
+    if (upcoming.length === 0) {
+      throw new Error(`SRT: every production page failed to parse: ${detail}`);
+    }
+    console.warn(`[srt] ${unresolved.length} unparseable production page(s): ${detail}`);
   }
 
   return newEvents;

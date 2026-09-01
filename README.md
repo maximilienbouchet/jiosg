@@ -1,6 +1,6 @@
 # jio
 
-A curated events feed for Singapore. Scrapes 10 sources, filters with an LLM, and surfaces ~10 genuinely interesting things happening each week.
+A curated events feed for Singapore. Scrapes 19 sources, filters with an LLM, and surfaces ~10 genuinely interesting things happening each week.
 
 **Live at [jiosg.app](https://jiosg.app)**
 
@@ -14,12 +14,11 @@ jio scrapes the sources, runs every event through an LLM filter calibrated for c
 
 ### Scraping pipeline
 
-11 scrapers run daily, pulling events from:
+19 scrapers run daily, pulling events from:
 
 - **Eventbrite** — general events, Singapore location filter
 - **Esplanade** — performing arts, concerts, recitals
 - **The Kallang** — Sports Hub events calendar
-- **SportPlus** — running events, community sports
 - **Peatix** — community and ticketed events
 - **Fever** — experience and activity events
 - **Tessera** — festival and event listings
@@ -27,6 +26,14 @@ jio scrapes the sources, runs every event through an LLM filter calibrated for c
 - **SRT** — Singapore Repertory Theatre
 - **BookMyShow** — concerts, shows, cinema
 - **Filmhouse** — independent cinema, repertory & special screenings
+- **Singapore GP** — F1 race weekend and its concert lineup
+- **SISTIC** — Singapore's dominant ticketing platform
+- **Ticketmaster SG** — big-name touring concerts and arena shows
+- **ActiveSG** / **JustRunLah** — sports events, races, tournaments
+- **Resident Advisor** — club and electronic nightlife
+- **SAGG** — gallery and museum exhibitions
+- **LAMC Presents** — indie and rock promoter shows
+- **Food editorial** — curated food & drink roundups
 
 Scrapers run in parallel as Vercel serverless functions, triggered by cron. Each run is logged to a `scraper_runs` table with event counts and errors. If any scraper returns zero events, an alert email goes to the admin.
 
@@ -118,11 +125,11 @@ With the MCP server connected, an AI assistant can handle:
 
 **MCP over a REST API for AI integration.** REST would work fine, but MCP lets AI clients discover and use the tools without custom integration code. Claude Desktop, Cursor, and other MCP-compatible clients can connect with a single config line and immediately query events. The protocol handles tool discovery, schema validation, and streaming. For a data source that's most useful when an AI can reason over it, MCP is the right abstraction.
 
-**Server-side scraping + LLM over user-generated content.** The whole point is taste-filtered curation, not a platform. Letting users submit events would require moderation, spam handling, and a fundamentally different product. Scraping 10 sources and filtering with an LLM produces a better feed with zero community management overhead.
+**Server-side scraping + LLM over user-generated content.** The whole point is taste-filtered curation, not a platform. Letting users submit events would require moderation, spam handling, and a fundamentally different product. Scraping 19 sources and filtering with an LLM produces a better feed with zero community management overhead.
 
 ## Status
 
-Live and running daily at [jiosg.app](https://jiosg.app). ~20 email subscribers and growing. 11 scrapers operational, processing ~200 events/day through the LLM pipeline.
+Live and running daily at [jiosg.app](https://jiosg.app). ~20 email subscribers and growing. 19 scrapers operational, processing ~200 events/day through the LLM pipeline.
 
 ## License
 

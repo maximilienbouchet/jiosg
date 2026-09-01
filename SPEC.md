@@ -52,14 +52,14 @@ Password-protected route (`/admin`) using `ADMIN_PASSWORD` env var. Five tabs:
 
 ### 3.3 Scraping Pipeline
 
-**11 scrapers** running daily at 3:00 AM SGT via Vercel cron, all written in TypeScript using cheerio for HTML parsing:
+**19 scrapers** running daily at 3:00 AM SGT via Vercel cron, written in TypeScript (JSON APIs where available, cheerio for HTML):
 
 | # | Source | File | What it scrapes |
 |---|--------|------|-----------------|
 | 1 | Eventbrite Singapore | `eventbrite.ts` | Filtered by Singapore location |
 | 2 | The Kallang (Sports Hub) | `thekallang.ts` | Sports Hub events calendar |
 | 3 | Esplanade | `esplanade.ts` | Performing arts, concerts, recitals |
-| 4 | SportPlus.sg | `sportplus.ts` | Running events, community sports |
+| 4 | ~~SportPlus.sg~~ | `sportplus.ts` | *Retired Sep 2026 — site moved off its scrapable feed; superseded by ActiveSG + JustRunLah* |
 | 5 | Peatix | `peatix.ts` | Community events platform |
 | 6 | Fever | `fever.ts` | Entertainment & experiences |
 | 7 | Tessera | `tessera.ts` | Ticketing platform events |
@@ -67,6 +67,15 @@ Password-protected route (`/admin`) using `ADMIN_PASSWORD` env var. Five tabs:
 | 9 | SRT | `srt.ts` | Singapore arts & theatre |
 | 10 | BookMyShow | `bookmyshow.ts` | Ticketing platform (SG) |
 | 11 | Filmhouse | `filmhouse.ts` | Independent cinema (ex-Projector space) — repertory & special screenings |
+| 12 | Singapore GP | `singaporegp.ts` | F1 Grand Prix + race-weekend concert lineup (seasonal: Jun–Oct) |
+| 13 | SISTIC | `sistic.ts` | Singapore's dominant ticketing platform — concerts, theatre, sport, F&B |
+| 14 | Ticketmaster SG | `ticketmaster.ts` | Big-name touring concerts, arena shows, comedy |
+| 15 | ActiveSG | `activesg.ts` | Government sports portal — races, tournaments |
+| 16 | JustRunLah | `justrunlah.ts` | Singapore running/trail race calendar |
+| 17 | Resident Advisor | `ra.ts` | Club & electronic nightlife |
+| 18 | SAGG | `sagg.ts` | Singapore Art & Gallery Guide — exhibitions with end dates |
+| 19 | Food editorial | `foodeditorial.ts` | Curated food & drink event roundups |
+| 20 | LAMC Presents | `lamc.ts` | Indie/rock promoter shows |
 
 **Pipeline flow:**
 1. Scrapers write raw events to database (source, title, description, URL, venue, dates)
@@ -478,14 +487,23 @@ project-root/
 │       ├── eventbrite.ts
 │       ├── thekallang.ts
 │       ├── esplanade.ts
-│       ├── sportplus.ts
+│       ├── sportplus.ts        (retired)
 │       ├── peatix.ts
 │       ├── fever.ts
 │       ├── tessera.ts
 │       ├── scape.ts
 │       ├── srt.ts
 │       ├── bookmyshow.ts
-│       └── filmhouse.ts
+│       ├── filmhouse.ts
+│       ├── singaporegp.ts
+│       ├── sistic.ts
+│       ├── ticketmaster.ts
+│       ├── activesg.ts
+│       ├── justrunlah.ts
+│       ├── ra.ts
+│       ├── sagg.ts
+│       ├── foodeditorial.ts
+│       └── lamc.ts
 │
 ├── components/
 │   ├── EventCard.tsx

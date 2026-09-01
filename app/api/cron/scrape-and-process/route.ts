@@ -29,7 +29,16 @@ async function runNightlyEditorPass(): Promise<string> {
 
 export const maxDuration = 60;
 
-const ALL_SOURCES = ["thekallang", "eventbrite", "esplanade", "sportplus", "peatix", "fever", "tessera", "scape", "srt", "bookmyshow", "filmhouse"];
+// Active scrapers, in sync with lib/scrapers/index.ts (sportplus retired).
+const ALL_SOURCES = [
+  "thekallang", "eventbrite", "esplanade", "peatix", "fever", "tessera",
+  "scape", "srt", "bookmyshow", "filmhouse", "singaporegp", "ticketmaster", "sistic",
+  "activesg", "justrunlah", "ra", "sagg", "foodeditorial", "lamc",
+];
+
+// singaporegp only publishes during the Grand Prix season (roughly Jun–Oct);
+// a zero-event run off-season is expected, not a breakage.
+const SEASONAL_SOURCES = new Set(["singaporegp"]);
 
 // GET /api/cron/scrape-and-process              → full pipeline (default)
 // GET /api/cron/scrape-and-process?action=scrape  → scrape only
@@ -145,7 +154,7 @@ export async function GET(request: NextRequest) {
   const { total, bySource, errors } = await runAllScrapers();
 
   const zeroSources = ALL_SOURCES.filter(
-    (s) => !(s in errors) && (bySource[s] ?? 0) === 0
+    (s) => !(s in errors) && (bySource[s] ?? 0) === 0 && !SEASONAL_SOURCES.has(s)
   );
 
   // Phase 2: LLM processing — single batch to stay within timeout

@@ -1,15 +1,16 @@
 import * as cheerio from "cheerio";
 import { initializeDb, upsertEvent } from "../db";
 
+// Trimmed from 8 category sweeps to 3. Dedicated sources now cover the
+// categories far better than Eventbrite's noisy long tail — music/theatre via
+// sistic + ticketmaster, food via foodeditorial, sport via activesg +
+// justrunlah, art via sagg, nightlife via ra. What remains is Eventbrite's one
+// unique contribution: the general community listings. This also keeps the
+// scraper inside its 50s slice now that 20 scrapers contend in parallel.
 const SEARCH_URLS = [
   "https://www.eventbrite.sg/d/singapore--singapore/events--this-week/",
   "https://www.eventbrite.sg/d/singapore--singapore/events--next-week/",
   "https://www.eventbrite.sg/d/singapore--singapore/music--events/",
-  "https://www.eventbrite.sg/d/singapore--singapore/performing-visual-arts--events/",
-  "https://www.eventbrite.sg/d/singapore--singapore/food-and-drink--events/",
-  "https://www.eventbrite.sg/d/singapore--singapore/film-media-entertainment--events/",
-  "https://www.eventbrite.sg/d/singapore--singapore/sports-fitness--events/",
-  "https://www.eventbrite.sg/d/singapore--singapore/health--events/",
 ];
 // 8 URLs × 2 pages = 16 requests; seenUrls handles cross-category dedup.
 // Kept at 2 because a 3-page sweep took ~94s, which overruns Vercel's 60s

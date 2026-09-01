@@ -2,7 +2,6 @@ import { initializeDb, insertScraperRun } from "../db";
 import { scrapeTheKallang } from "./thekallang";
 import { scrapeEventbrite } from "./eventbrite";
 import { scrapeEsplanade } from "./esplanade";
-import { scrapeSportPlus } from "./sportplus";
 import { scrapePeatix } from "./peatix";
 import { scrapeFever } from "./fever";
 import { scrapeTessera } from "./tessera";
@@ -10,6 +9,15 @@ import { scrapeScape } from "./scape";
 import { scrapeSrt } from "./srt";
 import { scrapeBookMyShow } from "./bookmyshow";
 import { scrapeFilmhouse } from "./filmhouse";
+import { scrapeSingaporegp } from "./singaporegp";
+import { scrapeTicketmaster } from "./ticketmaster";
+import { scrapeSistic } from "./sistic";
+import { scrapeActivesg } from "./activesg";
+import { scrapeJustrunlah } from "./justrunlah";
+import { scrapeRa } from "./ra";
+import { scrapeSagg } from "./sagg";
+import { scrapeFoodeditorial } from "./foodeditorial";
+import { scrapeLamc } from "./lamc";
 
 // A single scraper must not be able to eat the whole serverless budget. Vercel
 // kills the function at 60s; cap each scraper below that so the slow ones fail
@@ -38,7 +46,11 @@ export async function runAllScrapers(): Promise<{
     { name: "thekallang", fn: scrapeTheKallang },
     { name: "eventbrite", fn: scrapeEventbrite },
     { name: "esplanade", fn: scrapeEsplanade },
-    { name: "sportplus", fn: scrapeSportPlus },
+    // sportplus retired Sep 2026: 1 published event in its lifetime, nothing
+    // new since June, and the site moved off its scrapable Wix feed. activesg
+    // and justrunlah cover the sport lane properly now. Existing rows keep
+    // their source value; lib/scrapers/sportplus.ts is left in place in case
+    // the site becomes scrapable again.
     { name: "peatix", fn: scrapePeatix },
     { name: "fever", fn: scrapeFever },
     { name: "tessera", fn: scrapeTessera },
@@ -46,6 +58,15 @@ export async function runAllScrapers(): Promise<{
     { name: "srt", fn: scrapeSrt },
     { name: "bookmyshow", fn: scrapeBookMyShow },
     { name: "filmhouse", fn: scrapeFilmhouse },
+    { name: "singaporegp", fn: scrapeSingaporegp },
+    { name: "ticketmaster", fn: scrapeTicketmaster },
+    { name: "sistic", fn: scrapeSistic },
+    { name: "activesg", fn: scrapeActivesg },
+    { name: "justrunlah", fn: scrapeJustrunlah },
+    { name: "ra", fn: scrapeRa },
+    { name: "sagg", fn: scrapeSagg },
+    { name: "foodeditorial", fn: scrapeFoodeditorial },
+    { name: "lamc", fn: scrapeLamc },
   ];
 
   await initializeDb();
